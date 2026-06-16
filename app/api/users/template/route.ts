@@ -3,7 +3,7 @@ import { createWorkbook } from "@/lib/excel";
 
 const headers = ["username", "password", "role", "teacher_code", "is_active"];
 const sampleRows = [
-  ["teacher001", "teacher1234", "TEACHER", "T001", "TRUE"],
+  ["teacher001", "teacher1234", "ครู", "T001", "TRUE"],
   ["personnel01", "person1234", "PERSONNEL", "", "TRUE"],
   ["deptrep01", "dept1234", "DEPT_REP", "T003", "TRUE"]
 ];

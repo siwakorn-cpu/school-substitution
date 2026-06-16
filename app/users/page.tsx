@@ -78,7 +78,7 @@ export default async function UsersPage({
                 <option value="PERSONNEL">หัวหน้างานบุคคล</option>
                 <option value="HEAD">หัวหน้ากลุ่มสาระ</option>
                 <option value="DEPT_REP">ตัวแทนกลุ่มสาระ</option>
-                <option value="TEACHER">Teacher</option>
+                <option value="TEACHER">ครู</option>
               </select>
             </label>
             <label>
@@ -137,7 +137,7 @@ export default async function UsersPage({
                           <option value="PERSONNEL">หัวหน้างานบุคคล</option>
                           <option value="HEAD">หัวหน้ากลุ่มสาระ</option>
                           <option value="DEPT_REP">ตัวแทนกลุ่มสาระ</option>
-                          <option value="TEACHER">Teacher</option>
+                          <option value="TEACHER">ครู</option>
                         </select>
                         <select name="teacherId" defaultValue={item.teacherId ?? ""} aria-label="ครูที่ผูก">
                           <option value="">ไม่ผูกกับครู</option>
@@ -175,5 +175,5 @@ function roleLabel(role: string) {
   if (role === "PERSONNEL") return "หัวหน้างานบุคคล";
   if (role === "HEAD") return "หัวหน้ากลุ่มสาระ";
   if (role === "DEPT_REP") return "ตัวแทนกลุ่มสาระ";
-  return "Teacher";
+  return "ครู";
 }

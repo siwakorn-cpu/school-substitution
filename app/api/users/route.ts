@@ -45,7 +45,8 @@ export async function POST(request: Request) {
 }
 
 function normalizeRole(value: FormDataEntryValue | null) {
-  const role = String(value ?? "TEACHER");
+  const role = String(value ?? "TEACHER").trim();
+  if (role === "ครู") return "TEACHER";
   if (role === "ADMIN" || role === "PERSONNEL" || role === "HEAD" || role === "DEPT_REP" || role === "TEACHER") {
     return role;
   }

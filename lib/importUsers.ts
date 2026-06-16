@@ -87,6 +87,7 @@ export async function importUsers(rows: UserImportRow[]) {
 
 function normalizeRole(value: unknown) {
   const role = String(value ?? "TEACHER").trim().toUpperCase();
+  if (role === "ครู") return "TEACHER";
   if (role === "ADMIN" || role === "PERSONNEL" || role === "HEAD" || role === "DEPT_REP" || role === "TEACHER") {
     return role;
   }
