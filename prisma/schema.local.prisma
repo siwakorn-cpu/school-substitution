@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  PERSONNEL
+  HEAD
+  DEPT_REP
+  TEACHER
+}
+
+enum TeacherStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum RoomType {
+  CLASSROOM
+  SPECIAL
+}
+
+enum AbsenceType {
+  LEAVE
+  PERSONAL
+  OFFICIAL
+}
+
+enum AbsencePeriodAction {
+  SUBSTITUTE
+  SWAP
+  NONE
+}
+
+enum WorkStatus {
+  PENDING
+  DONE
+  CANCELLED
+}
+
+enum SwapStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TemporaryScheduleSource {
+  SWAP
+  SUBSTITUTE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         Role
+  teacherId    String?  @unique
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  teacher Teacher? @relation(fields: [teacherId], references: [id])
+}
+
+model Department {
+  id            String  @id @default(cuid())
+  name          String  @unique
+  headTeacherId String?
+
+  teachers Teacher[]
+}
+
+model Teacher {
+  id           String        @id @default(cuid())
+  code         String        @unique
+  name         String
+  departmentId String
+  status       TeacherStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  department     Department         @relation(fields: [departmentId], references: [id])
+  user           User?
+  schedules      TeachingSchedule[]
+  absences       TeacherAbsence[]
+  requestedSwaps SwapRequest[]      @relation("SwapRequester")
+  targetSwaps    SwapRequest[]      @relation("SwapTarget")
+}
+
+model Room {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  type     RoomType
+  isActive Boolean  @default(true)
+
+  classSchedules   TeachingSchedule[] @relation("ScheduleClassRoom")
+  specialSchedules TeachingSchedule[] @relation("ScheduleSpecialRoom")
+}
+
+model Subject {
+  id   String  @id @default(cuid())
+  code String?
+  name String  @unique
+
+  schedules TeachingSchedule[]
+}
+
+model TeachingSchedule {
+  id            String   @id @default(cuid())
+  teacherId     String
+  dayOfWeek     Int
+  period        Int
+  classRoomId   String
+  subjectId     String
+  specialRoomId String?
+  term          String   @default("1/2569")
+  createdAt     DateTime @default(now())
+
+  teacher        Teacher         @relation(fields: [teacherId], references: [id])
+  classRoom      Room            @relation("ScheduleClassRoom", fields: [classRoomId], references: [id])
+  specialRoom    Room?           @relation("ScheduleSpecialRoom", fields: [specialRoomId], references: [id])
+  subject        Subject         @relation(fields: [subjectId], references: [id])
+  absencePeriods AbsencePeriod[]
+
+  @@unique([teacherId, dayOfWeek, period, term])
+}
+
+model TeacherAbsence {
+  id          String      @id @default(cuid())
+  teacherId   String
+  date        DateTime
+  type        AbsenceType
+  note        String?
+  createdById String
+  createdAt   DateTime    @default(now())
+
+  teacher Teacher         @relation(fields: [teacherId], references: [id])
+  periods AbsencePeriod[]
+}
+
+model AbsencePeriod {
+  id         String              @id @default(cuid())
+  absenceId  String
+  scheduleId String
+  period     Int
+  actionType AbsencePeriodAction @default(NONE)
+  status     WorkStatus          @default(PENDING)
+
+  absence      TeacherAbsence   @relation(fields: [absenceId], references: [id])
+  schedule     TeachingSchedule @relation(fields: [scheduleId], references: [id])
+  substitution Substitution?
+}
+
+model Substitution {
+  id                  String   @id @default(cuid())
+  absencePeriodId     String   @unique
+  originalTeacherId   String
+  substituteTeacherId String
+  date                DateTime
+  period              Int
+  classRoomId         String
+  subjectId           String
+  specialRoomId       String?
+  assignedById        String
+  note                String?
+  createdAt           DateTime @default(now())
+
+  absencePeriod AbsencePeriod @relation(fields: [absencePeriodId], references: [id])
+}
+
+model SwapRequest {
+  id                 String     @id @default(cuid())
+  requesterTeacherId String
+  targetTeacherId    String
+  date               DateTime
+  fromScheduleId     String
+  toScheduleId       String
+  status             SwapStatus @default(PENDING)
+  requestedById      String
+  approvedById       String?
+  note               String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  requesterTeacher Teacher @relation("SwapRequester", fields: [requesterTeacherId], references: [id])
+  targetTeacher    Teacher @relation("SwapTarget", fields: [targetTeacherId], references: [id])
+}
+
+model TemporarySchedule {
+  id                 String                  @id @default(cuid())
+  date               DateTime
+  originalScheduleId String
+  teacherId          String
+  period             Int
+  classRoomId        String
+  subjectId          String
+  specialRoomId      String?
+  sourceType         TemporaryScheduleSource
+  sourceId           String
+  createdAt          DateTime                @default(now())
+}
