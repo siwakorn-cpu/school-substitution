@@ -6,7 +6,7 @@
 
 - ระบบ production ใช้ PostgreSQL ไม่ใช้ไฟล์ SQLite เพราะไฟล์ใน Render Web Service อาจหายเมื่อ restart หรือ deploy ใหม่
 - ไฟล์ `render.yaml` เตรียม Render Web Service ให้พร้อม โดยใช้ PostgreSQL จาก Aiven
-- Render จะรัน database migration อัตโนมัติก่อนเปิดเวอร์ชันใหม่
+- Render จะรัน database migration อัตโนมัติระหว่าง build
 - Render จะสร้างบัญชีผู้ดูแลระบบครั้งแรกจาก username/password ที่กรอกตอนสร้าง Blueprint
 - `SESSION_SECRET` ถูกสร้างแบบสุ่มโดย Render และ cookie session มีลายเซ็นป้องกันการแก้ค่า
 - ข้อมูลเก่าใน `prisma/dev.db` ไม่ถูกย้ายไป PostgreSQL อัตโนมัติ
@@ -117,8 +117,8 @@ Render จะทำงานตามลำดับนี้:
 
 1. ติดตั้ง package ด้วย `npm ci`
 2. สร้าง Prisma Client
-3. build Next.js
-4. รัน `prisma migrate deploy` เพื่อสร้างตารางใน Aiven PostgreSQL
+3. รัน `prisma migrate deploy` เพื่อสร้างตารางใน Aiven PostgreSQL
+4. build Next.js
 5. เปิด Web Service
 6. รัน `db:bootstrap` เพื่อสร้างบัญชี admin ครั้งแรกโดยไม่ล้างข้อมูล
 
@@ -142,7 +142,7 @@ Created administrator: schooladmin
 
 ## การอัปเดตระบบในอนาคต
 
-เมื่อแก้ไฟล์แล้ว ให้ commit และ push ไป branch `main` ผ่าน GitHub Desktop ปุ่ม `Commit` แล้ว `Push origin` จากนั้น Render จะ deploy อัตโนมัติ ทุก deploy จะรัน migration ที่ยังไม่เคยรันก่อนเปิดระบบเวอร์ชันใหม่
+เมื่อแก้ไฟล์แล้ว ให้ commit และ push ไป branch `main` ผ่าน GitHub Desktop ปุ่ม `Commit` แล้ว `Push origin` จากนั้น Render จะ deploy อัตโนมัติ ทุก deploy จะรัน migration ที่ยังไม่เคยรันระหว่าง build
 
 ห้ามแก้ migration ที่เคย deploy แล้ว หากต้องแก้ database schema ให้สร้าง migration ใหม่:
 
