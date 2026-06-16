@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { hashPassword, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
   const currentUser = await requireAdmin();
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.redirect(new URL("/users", request.url), 303);
+  return redirectTo(request, "/users");
 }
 
 function normalizeRole(value: FormDataEntryValue | null) {

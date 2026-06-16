@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { validateSubstitute } from "@/lib/recommendSubstitutes";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
   const user = await requireAdmin();
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
   const valid = await validateSubstitute(absencePeriodId, substituteTeacherId);
   if (!valid) {
-    return NextResponse.redirect(new URL(`/substitutions?absencePeriodId=${absencePeriodId}`, request.url), 303);
+    return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
   }
 
   const absencePeriod = await prisma.absencePeriod.findUnique({
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   });
 
   if (!absencePeriod) {
-    return NextResponse.redirect(new URL("/substitutions", request.url), 303);
+    return redirectTo(request, "/substitutions");
   }
 
   await prisma.substitution.upsert({
@@ -48,5 +48,5 @@ export async function POST(request: Request) {
     data: { actionType: "SUBSTITUTE", status: "DONE" }
   });
 
-  return NextResponse.redirect(new URL(`/substitutions?absencePeriodId=${absencePeriodId}`, request.url), 303);
+  return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
 }

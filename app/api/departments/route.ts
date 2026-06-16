@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
   await requireAdmin();
@@ -23,5 +23,5 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.redirect(new URL("/data-upload", request.url), 303);
+  return redirectTo(request, "/data-upload");
 }

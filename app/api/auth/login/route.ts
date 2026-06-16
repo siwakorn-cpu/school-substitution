@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { createSession, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -9,14 +9,14 @@ export async function POST(request: Request) {
 
   const user = await prisma.user.findUnique({ where: { username } });
   if (!user || !user.isActive) {
-    return NextResponse.redirect(new URL("/login?error=1", request.url), 303);
+    return redirectTo(request, "/login?error=1");
   }
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) {
-    return NextResponse.redirect(new URL("/login?error=1", request.url), 303);
+    return redirectTo(request, "/login?error=1");
   }
 
   await createSession(user.id);
-  return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+  return redirectTo(request, "/dashboard");
 }

@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { canManageAbsence, canRecordOwnAbsence } from "@/lib/rbac";
 import { parseDateInput } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
   const user = await requireUser();
   const canManageAllAbsences = canManageAbsence(user);
   const canRecordOwn = canRecordOwnAbsence(user);
   if (!canManageAllAbsences && !canRecordOwn) {
-    return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+    return redirectTo(request, "/dashboard");
   }
   const formData = await request.formData();
   const requestedTeacherId = String(formData.get("teacherId") ?? "");
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const scheduleIds = formData.getAll("scheduleIds").map(String).filter(Boolean);
 
   if (!teacherId || scheduleIds.length === 0 || (!canManageAllAbsences && requestedTeacherId !== user.teacherId)) {
-    return NextResponse.redirect(new URL("/absences", request.url), 303);
+    return redirectTo(request, "/absences");
   }
 
   const absence = await prisma.teacherAbsence.create({
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.redirect(new URL("/absences", request.url), 303);
+  return redirectTo(request, "/absences");
 }
 
 function normalizeAbsenceType(value: FormDataEntryValue | null) {

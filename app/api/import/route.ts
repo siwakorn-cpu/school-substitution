@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { importSchedules, parseScheduleFile } from "@/lib/importSchedules";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
   await requireAdmin();
@@ -9,21 +9,21 @@ export async function POST(request: Request) {
   const term = String(formData.get("term") ?? "1/2569").trim();
 
   if (!(file instanceof File)) {
-    return NextResponse.redirect(new URL("/data-upload?error=ไม่พบไฟล์", request.url), 303);
+    return redirectTo(request, "/data-upload?error=ไม่พบไฟล์");
   }
 
   let rows;
   try {
     rows = await parseScheduleFile(file);
   } catch {
-    return NextResponse.redirect(new URL("/data-upload?error=ไฟล์ไม่ถูกต้องหรือไม่รองรับ", request.url), 303);
+    return redirectTo(request, "/data-upload?error=ไฟล์ไม่ถูกต้องหรือไม่รองรับ");
   }
   const result = await importSchedules(rows, term);
 
   if (result.errors.length > 0) {
     const message = encodeURIComponent(result.errors.slice(0, 8).join(" | "));
-    return NextResponse.redirect(new URL(`/data-upload?imported=${result.imported}&error=${message}`, request.url), 303);
+    return redirectTo(request, `/data-upload?imported=${result.imported}&error=${message}`);
   }
 
-  return NextResponse.redirect(new URL(`/data-upload?imported=${result.imported}`, request.url), 303);
+  return redirectTo(request, `/data-upload?imported=${result.imported}`);
 }

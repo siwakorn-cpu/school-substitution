@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { canManageSwap } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { getSwapCandidates } from "@/lib/swapCandidates";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
   const user = await requireUser();
   if (!canManageSwap(user)) {
-    return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+    return redirectTo(request, "/dashboard");
   }
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const id = String(formData.get("id") ?? "");
     const swapForPermission = await prisma.swapRequest.findUnique({ where: { id } });
     if (!swapForPermission || swapForPermission.targetTeacherId !== user.teacherId) {
-      return NextResponse.redirect(new URL("/swaps", request.url), 303);
+      return redirectTo(request, "/swaps");
     }
 
     if (intent === "reject") {
@@ -108,5 +108,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.redirect(new URL("/swaps", request.url), 303);
+  return redirectTo(request, "/swaps");
 }

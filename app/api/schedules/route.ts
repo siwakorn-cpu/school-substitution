@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { redirectTo } from "@/lib/redirect";
 
 function redirectBack(request: NextRequest, formData: FormData, key: "scheduleMessage" | "scheduleError", message: string) {
   const params = new URLSearchParams({
@@ -8,7 +9,7 @@ function redirectBack(request: NextRequest, formData: FormData, key: "scheduleMe
     scheduleTerm: String(formData.get("scheduleTerm") ?? formData.get("term") ?? "1/2569")
   });
   params.set(key, message);
-  return NextResponse.redirect(new URL(`/data-upload?${params.toString()}`, request.url), 303);
+  return redirectTo(request, `/data-upload?${params.toString()}`);
 }
 
 function readScheduleForm(formData: FormData) {
