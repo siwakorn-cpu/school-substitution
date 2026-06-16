@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/siwbook/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/13c13381-c8d6-4eeb-adf6-3140a621526e/dc2fbade-cabb-469c-ad92-96ddc64400af/skills/xlsx/**)",
+      "Bash(python3 -)",
+      "Bash(pip3 install *)",
+      "Bash(open /Users/siwbook/Desktop/timetable/)",
+      "Read(//Users/siwbook/Desktop/timetable/**)",
+      "Bash(npx vite *)"
+    ]
+  }
+}

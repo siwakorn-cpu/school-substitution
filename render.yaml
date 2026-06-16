@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: school-substitution
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci && npm run prisma:generate && npm run build
+    preDeployCommand: npm run prisma:deploy
+    startCommand: npm start
+    initialDeployHook: npm run db:bootstrap
+    healthCheckPath: /login
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
