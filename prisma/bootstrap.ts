@@ -14,25 +14,25 @@ async function main() {
     throw new Error("ADMIN_PASSWORD must contain at least 12 characters");
   }
 
-  const existingAdmin = await prisma.user.findFirst({ where: { role: Role.ADMIN } });
-  if (existingAdmin) {
-    console.log(`Administrator already exists: ${existingAdmin.username}`);
+  const passwordHash = await bcrypt.hash(password, 12);
+  const existingUsername = await prisma.user.findUnique({ where: { username } });
+
+  if (existingUsername) {
+    await prisma.user.update({
+      where: { username },
+      data: {
+        passwordHash,
+        role: Role.ADMIN,
+        isActive: true
+      }
+    });
+    console.log(`Updated administrator: ${username}`);
     return;
   }
 
-  const existingUsername = await prisma.user.findUnique({ where: { username } });
-  if (existingUsername) {
-    throw new Error(`Username already exists and is not an administrator: ${username}`);
-  }
-
   await prisma.user.create({
-    data: {
-      username,
-      passwordHash: await bcrypt.hash(password, 12),
-      role: Role.ADMIN
-    }
+    data: { username, passwordHash, role: Role.ADMIN }
   });
-
   console.log(`Created administrator: ${username}`);
 }
 

@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm ci --include=dev && npm run prisma:generate && npm run prisma:deploy && npm run build
+    buildCommand: npm ci --include=dev && npm run prisma:generate && npm run prisma:deploy && npm run db:bootstrap && npm run build
     startCommand: npm start
     initialDeployHook: npm run db:bootstrap
     healthCheckPath: /login
