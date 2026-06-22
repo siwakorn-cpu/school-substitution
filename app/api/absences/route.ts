@@ -6,8 +6,10 @@ import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
   const user = await requireUser();
-  const canManageAllAbsences = canManageAbsence(user);
-  const canRecordOwn = canRecordOwnAbsence(user);
+  const [canManageAllAbsences, canRecordOwn] = await Promise.all([
+    canManageAbsence(user),
+    canRecordOwnAbsence(user)
+  ]);
   if (!canManageAllAbsences && !canRecordOwn) {
     return redirectTo(request, "/dashboard");
   }

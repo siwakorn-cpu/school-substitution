@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canImportSchedule } from "@/lib/rbac";
 import { redirectTo } from "@/lib/redirect";
 
 function redirectBack(request: NextRequest, formData: FormData, key: "scheduleMessage" | "scheduleError", message: string) {
@@ -9,7 +10,7 @@ function redirectBack(request: NextRequest, formData: FormData, key: "scheduleMe
     scheduleTerm: String(formData.get("scheduleTerm") ?? formData.get("term") ?? "1/2569")
   });
   params.set(key, message);
-  return redirectTo(request, `/data-upload?${params.toString()}`);
+  return redirectTo(request, `/data-upload/schedules?${params.toString()}`);
 }
 
 function readScheduleForm(formData: FormData) {
@@ -75,14 +76,17 @@ async function validateSchedule(data: ReturnType<typeof readScheduleForm>, curre
 
   if (teacherConflict) return "ครูคนนี้มีตารางสอนในคาบดังกล่าวแล้ว";
   if (classRoomConflict) return "ห้องเรียนนี้มีตารางสอนในคาบดังกล่าวแล้ว";
-  if (specialRoomConflict) return "ห้องพิเศษนี้มีตารางสอนในคาบดังกล่าวแล้ว";
+  if (specialRoomConflict) return "ห้อง/อาคารนี้มีตารางสอนในคาบดังกล่าวแล้ว";
 
   return null;
 }
 
 export async function POST(request: NextRequest) {
-  await requireAdmin();
+  const user = await requireUser();
   const formData = await request.formData();
+  if (!(await canImportSchedule(user))) {
+    return redirectBack(request, formData, "scheduleError", "บัญชีนี้ไม่มีสิทธิ์จัดการตารางสอน");
+  }
   const intent = String(formData.get("intent") ?? "");
 
   if (intent === "delete") {

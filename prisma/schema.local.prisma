@@ -67,6 +67,27 @@ model User {
   teacher Teacher? @relation(fields: [teacherId], references: [id])
 }
 
+model RolePermission {
+  id         String   @id @default(cuid())
+  role       Role
+  permission String
+  enabled    Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([role, permission])
+}
+
+model SchoolTerm {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  isCurrent   Boolean  @default(false)
+  sourceTerm  String?
+  mode        String   @default("blank_schedule")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Department {
   id            String  @id @default(cuid())
   name          String  @unique
@@ -183,6 +204,7 @@ model SwapRequest {
   status             SwapStatus @default(PENDING)
   requestedById      String
   approvedById       String?
+  splitDoublePeriod  Boolean    @default(false)
   note               String?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function ImportPage() {
-  redirect("/data-upload");
+  redirect("/data-upload/schedules");
 }

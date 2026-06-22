@@ -1,7 +1,8 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { createWorkbook } from "@/lib/excel";
+import { canImportSchedule } from "@/lib/rbac";
 
-const headers = ["teacher_code", "day", "period", "class_room", "subject_code", "subject", "special_room"];
+const headers = ["teacher_code", "day", "period", "class_room", "subject_code", "subject", "room_building"];
 const sampleRows = [
   ["T001", "จันทร์", "1", "ม.1/1", "ค21101", "คณิตศาสตร์", ""],
   ["T003", "อังคาร", "2-3", "ม.2/1", "ว21101", "วิทยาศาสตร์", "ห้องวิทย์ 1"],
@@ -9,7 +10,8 @@ const sampleRows = [
 ];
 
 export async function GET(request: Request) {
-  await requireAdmin();
+  const user = await requireUser();
+  if (!(await canImportSchedule(user))) return new Response("Forbidden", { status: 403 });
   const url = new URL(request.url);
   const format = url.searchParams.get("format") === "xlsx" ? "xlsx" : "csv";
 

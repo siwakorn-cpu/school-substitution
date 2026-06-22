@@ -1,30 +1,94 @@
 import { requireUser } from "@/lib/auth";
-import { canManageSwap } from "@/lib/rbac";
+import { canApproveSwap, canManageSwap } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
-import { getSwapCandidates } from "@/lib/swapCandidates";
+import { validateSubstitute } from "@/lib/recommendSubstitutes";
+import { validateSwapCandidate } from "@/lib/swapCandidates";
 import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
   const user = await requireUser();
-  if (!canManageSwap(user)) {
+  if (!(await canManageSwap(user))) {
     return redirectTo(request, "/dashboard");
   }
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
 
-  if (intent === "create") {
+  if (intent === "substitute") {
     const absencePeriodId = String(formData.get("absencePeriodId") ?? "");
-    const toScheduleId = String(formData.get("toScheduleId") ?? "");
+    const substituteTeacherId = String(formData.get("substituteTeacherId") ?? "");
+    const requestedSubjectId = String(formData.get("subjectId") ?? "");
+    const reason = String(formData.get("reason") ?? "").trim();
+
+    if (!(await canApproveScheduleChange(user))) {
+      return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+    }
+
+    const valid = await validateSubstitute(absencePeriodId, substituteTeacherId);
     const absencePeriod = await prisma.absencePeriod.findUnique({
       where: { id: absencePeriodId },
       include: { absence: true, schedule: true }
     });
-    const candidates = await getSwapCandidates(absencePeriodId);
-    const target = candidates.find((item) => item.id === toScheduleId);
+
+    if (valid && absencePeriod) {
+      const subject = requestedSubjectId
+        ? await prisma.subject.findUnique({ where: { id: requestedSubjectId } })
+        : null;
+      const subjectId = subject?.id ?? absencePeriod.schedule.subjectId;
+      await prisma.$transaction([
+        prisma.substitution.upsert({
+          where: { absencePeriodId },
+          create: {
+            absencePeriodId,
+            originalTeacherId: absencePeriod.absence.teacherId,
+            substituteTeacherId,
+            date: absencePeriod.absence.date,
+            period: absencePeriod.period,
+            classRoomId: absencePeriod.schedule.classRoomId,
+            subjectId,
+            specialRoomId: absencePeriod.schedule.specialRoomId,
+            assignedById: user.id,
+            note: reason || "เข้าแทน"
+          },
+          update: {
+            substituteTeacherId,
+            assignedById: user.id,
+            note: reason || "เข้าแทน"
+          }
+        }),
+        prisma.absencePeriod.update({
+          where: { id: absencePeriodId },
+          data: { actionType: "SUBSTITUTE", status: "DONE" }
+        }),
+        prisma.temporarySchedule.create({
+          data: {
+            date: absencePeriod.absence.date,
+            originalScheduleId: absencePeriod.scheduleId,
+            teacherId: substituteTeacherId,
+            period: absencePeriod.period,
+            classRoomId: absencePeriod.schedule.classRoomId,
+            subjectId,
+            specialRoomId: absencePeriod.schedule.specialRoomId,
+            sourceType: "SUBSTITUTE",
+            sourceId: absencePeriodId
+          }
+        })
+      ]);
+    }
+
+    return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+  }
+
+  if (intent === "create") {
+    const absencePeriodId = String(formData.get("absencePeriodId") ?? "");
+    const toScheduleId = String(formData.get("toScheduleId") ?? "");
+    const reason = String(formData.get("reason") ?? "").trim();
+    const absencePeriod = await prisma.absencePeriod.findUnique({
+      where: { id: absencePeriodId },
+      include: { absence: true, schedule: true }
+    });
+    const target = await validateSwapCandidate(absencePeriodId, toScheduleId);
     const canCreateForThisPeriod =
-      user.role === "ADMIN" ||
-      user.role === "HEAD" ||
-      user.role === "DEPT_REP" ||
+      (await canApproveScheduleChange(user)) ||
       (Boolean(user.teacherId) && absencePeriod?.absence.teacherId === user.teacherId);
 
     if (
@@ -40,7 +104,9 @@ export async function POST(request: Request) {
           date: absencePeriod.absence.date,
           fromScheduleId: absencePeriod.scheduleId,
           toScheduleId: target.id,
-          requestedById: user.id
+          requestedById: user.id,
+          splitDoublePeriod: target.splitDoublePeriod,
+          note: reason
         }
       });
       await prisma.absencePeriod.update({
@@ -53,7 +119,7 @@ export async function POST(request: Request) {
   if (intent === "approve" || intent === "reject") {
     const id = String(formData.get("id") ?? "");
     const swapForPermission = await prisma.swapRequest.findUnique({ where: { id } });
-    if (!swapForPermission || swapForPermission.targetTeacherId !== user.teacherId) {
+    if (!swapForPermission || (!(await canApproveScheduleChange(user)) && swapForPermission.targetTeacherId !== user.teacherId)) {
       return redirectTo(request, "/swaps");
     }
 
@@ -71,6 +137,7 @@ export async function POST(request: Request) {
         ]);
 
         if (fromSchedule && toSchedule) {
+          const targetDate = dateForDayOfWeek(swap.date, toSchedule.dayOfWeek);
           await prisma.$transaction([
             prisma.swapRequest.update({
               where: { id },
@@ -83,21 +150,21 @@ export async function POST(request: Request) {
                 teacherId: toSchedule.teacherId,
                 period: fromSchedule.period,
                 classRoomId: fromSchedule.classRoomId,
-                subjectId: fromSchedule.subjectId,
-                specialRoomId: fromSchedule.specialRoomId,
+                subjectId: toSchedule.subjectId,
+                specialRoomId: toSchedule.specialRoomId,
                 sourceType: "SWAP",
                 sourceId: swap.id
               }
             }),
             prisma.temporarySchedule.create({
               data: {
-                date: swap.date,
+                date: targetDate,
                 originalScheduleId: toSchedule.id,
                 teacherId: fromSchedule.teacherId,
                 period: toSchedule.period,
                 classRoomId: toSchedule.classRoomId,
-                subjectId: toSchedule.subjectId,
-                specialRoomId: toSchedule.specialRoomId,
+                subjectId: fromSchedule.subjectId,
+                specialRoomId: fromSchedule.specialRoomId,
                 sourceType: "SWAP",
                 sourceId: swap.id
               }
@@ -109,4 +176,14 @@ export async function POST(request: Request) {
   }
 
   return redirectTo(request, "/swaps");
+}
+
+function canApproveScheduleChange(user: Awaited<ReturnType<typeof requireUser>>) {
+  return canApproveSwap(user);
+}
+
+function dateForDayOfWeek(sourceDate: Date, targetDayOfWeek: number) {
+  const date = new Date(sourceDate);
+  date.setDate(date.getDate() + targetDayOfWeek - date.getDay());
+  return date;
 }

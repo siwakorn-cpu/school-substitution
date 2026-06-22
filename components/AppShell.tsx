@@ -1,18 +1,35 @@
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import type { SessionUser } from "@/lib/auth";
+import type { PermissionKey } from "@/lib/permissions";
+import { hasPermission, roleLabel } from "@/lib/permissions";
 
 const links = [
-  { href: "/dashboard", label: "ภาพรวม", roles: ["ADMIN", "PERSONNEL", "HEAD", "DEPT_REP", "TEACHER"] },
-  { href: "/absences", label: "บันทึกการลา/ไปราชการ", roles: ["ADMIN", "PERSONNEL", "HEAD", "DEPT_REP", "TEACHER"] },
-  { href: "/substitutions", label: "จัดสอนแทน", roles: ["ADMIN", "PERSONNEL", "HEAD", "DEPT_REP", "TEACHER"] },
-  { href: "/swaps", label: "แลกคาบ", roles: ["ADMIN", "HEAD", "DEPT_REP", "TEACHER"] },
-  { href: "/reports", label: "สถิติ", roles: ["ADMIN", "PERSONNEL", "HEAD"] },
-  { href: "/data-upload", label: "อัพโหลดข้อมูล", roles: ["ADMIN", "HEAD"] },
-  { href: "/users", label: "จัดการผู้ใช้", roles: ["ADMIN"] }
-];
+  { href: "/dashboard", label: "ภาพรวม" },
+  { href: "/absences", label: "บันทึกการลา/ไปราชการ", permissions: ["record_own_absence", "manage_all_absences"] },
+  { href: "/substitutions", label: "จัดสอนแทน", permissions: ["manage_substitutions"] },
+  { href: "/swaps", label: "แลกคาบ", permissions: ["manage_swaps"] },
+  { href: "/reports", label: "สถิติ", permissions: ["view_reports"] },
+  { href: "/data-upload", label: "อัพโหลดข้อมูล", permissions: ["manage_teacher_data", "import_schedules"] },
+  { href: "/users", label: "จัดการผู้ใช้", adminOnly: true },
+  { href: "/permissions", label: "ปรับสิทธิ์", adminOnly: true },
+  { href: "/terms/start-new", label: "เริ่มภาคเรียนใหม่", adminOnly: true }
+] satisfies {
+  href: string;
+  label: string;
+  permissions?: PermissionKey[];
+  adminOnly?: boolean;
+}[];
 
-export function AppShell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
+export async function AppShell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
+  const visibleLinks = [];
+  for (const link of links) {
+    const visible =
+      !link.adminOnly &&
+      (!link.permissions || (await Promise.all(link.permissions.map((permission) => hasPermission(user, permission)))).some(Boolean));
+    if (user.role === "ADMIN" || visible) visibleLinks.push(link);
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -21,8 +38,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           <span>{roleLabel(user.role)} · {user.username}</span>
         </Link>
         <nav className="nav" aria-label="เมนูหลัก">
-          {links
-            .filter((link) => link.roles.includes(user.role))
+          {visibleLinks
             .map((link) => (
               <Link key={link.href} href={link.href}>
                 {link.label}
@@ -38,12 +54,4 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
       <main className="main">{children}</main>
     </div>
   );
-}
-
-function roleLabel(role: SessionUser["role"]) {
-  if (role === "ADMIN") return "ผู้ดูแลระบบ";
-  if (role === "PERSONNEL") return "หัวหน้างานบุคคล";
-  if (role === "HEAD") return "หัวหน้ากลุ่มสาระ";
-  if (role === "DEPT_REP") return "ตัวแทนกลุ่มสาระ";
-  return "ครู";
 }

@@ -1,5 +1,6 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { createWorkbook } from "@/lib/excel";
+import { canManageTeacher } from "@/lib/rbac";
 
 const headers = ["teacher_code", "teacher_name", "department", "status"];
 const sampleRows = [
@@ -9,7 +10,8 @@ const sampleRows = [
 ];
 
 export async function GET(request: Request) {
-  await requireAdmin();
+  const user = await requireUser();
+  if (!(await canManageTeacher(user))) return new Response("Forbidden", { status: 403 });
   const url = new URL(request.url);
   const format = url.searchParams.get("format") === "csv" ? "csv" : "xlsx";
 

@@ -124,8 +124,8 @@ export default async function UsersPage({
                         : "-"}
                     </td>
                     <td>
-                      <span className={`badge ${item.isActive ? "success" : "danger"}`}>
-                        {item.isActive ? "ใช้งาน" : "ปิดใช้งาน"}
+                      <span className={`badge ${item.isActive ? "success" : "warning"}`}>
+                        {item.isActive ? "ใช้งาน" : "รออนุมัติ/ปิดใช้งาน"}
                       </span>
                     </td>
                     <td>
@@ -150,8 +150,8 @@ export default async function UsersPage({
                             ))}
                         </select>
                         <select name="isActive" defaultValue={item.isActive ? "true" : "false"} aria-label="สถานะ">
-                          <option value="true">ใช้งาน</option>
-                          <option value="false">ปิดใช้งาน</option>
+                          <option value="true">อนุมัติ/ใช้งาน</option>
+                          <option value="false">รออนุมัติ/ปิดใช้งาน</option>
                         </select>
                         <input name="password" type="password" placeholder="รหัสใหม่ ถ้าต้องการ" aria-label="รหัสผ่านใหม่" />
                         <button className="btn" type="submit">

@@ -1,9 +1,11 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canManageTeacher } from "@/lib/rbac";
 import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
-  await requireAdmin();
+  const user = await requireUser();
+  if (!(await canManageTeacher(user))) return redirectTo(request, "/dashboard");
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
   const name = String(formData.get("name") ?? "").trim();
@@ -23,5 +25,5 @@ export async function POST(request: Request) {
     });
   }
 
-  return redirectTo(request, "/data-upload");
+  return redirectTo(request, "/data-upload/teachers");
 }

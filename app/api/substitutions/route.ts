@@ -1,10 +1,14 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canManageSubstitution } from "@/lib/rbac";
 import { validateSubstitute } from "@/lib/recommendSubstitutes";
 import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request) {
-  const user = await requireAdmin();
+  const user = await requireUser();
+  if (!(await canManageSubstitution(user))) {
+    return redirectTo(request, "/dashboard");
+  }
   const formData = await request.formData();
   const absencePeriodId = String(formData.get("absencePeriodId") ?? "");
   const substituteTeacherId = String(formData.get("substituteTeacherId") ?? "");

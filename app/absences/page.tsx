@@ -11,8 +11,10 @@ export default async function AbsencesPage({
   searchParams: Promise<{ date?: string; teacherId?: string }>;
 }) {
   const user = await requireUser();
-  const canManageAllAbsences = canManageAbsence(user);
-  const canRecordOwn = canRecordOwnAbsence(user);
+  const [canManageAllAbsences, canRecordOwn] = await Promise.all([
+    canManageAbsence(user),
+    canRecordOwnAbsence(user)
+  ]);
   if (!canManageAllAbsences && !canRecordOwn) {
     return (
       <AppShell user={user}>
@@ -99,7 +101,7 @@ export default async function AbsencesPage({
                   <label>
                     ประเภท
                   <select name="type">
-                    <option value="LEAVE">ลา</option>
+                    <option value="LEAVE">ลาป่วย</option>
                     <option value="PERSONAL">ลากิจ</option>
                     <option value="OFFICIAL">ไปราชการ</option>
                   </select>
@@ -126,7 +128,7 @@ export default async function AbsencesPage({
                       <th>คาบ</th>
                       <th>ห้อง</th>
                       <th>วิชา</th>
-                      <th>ห้องพิเศษ</th>
+                      <th>ห้อง/อาคาร</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -202,5 +204,5 @@ export default async function AbsencesPage({
 function absenceTypeLabel(type: string) {
   if (type === "OFFICIAL") return "ไปราชการ";
   if (type === "PERSONAL") return "ลากิจ";
-  return "ลา";
+  return "ลาป่วย";
 }

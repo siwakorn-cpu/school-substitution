@@ -1,22 +1,62 @@
+import type { Prisma } from "@prisma/client";
 import { AppShell } from "@/components/AppShell";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatThaiDate } from "@/lib/date";
+import { canManageSubstitution } from "@/lib/rbac";
+import { formatThaiDate, parseDateInput, toDateInputValue } from "@/lib/date";
 import { recommendSubstitutes } from "@/lib/recommendSubstitutes";
 
 export default async function SubstitutionsPage({
   searchParams
 }: {
-  searchParams: Promise<{ absencePeriodId?: string; edit?: string; sortDate?: string }>;
+  searchParams: Promise<{
+    absencePeriodId?: string;
+    edit?: string;
+    sortDate?: string;
+    dateScope?: string;
+    departmentId?: string;
+  }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
+  const canAssignSubstitution = await canManageSubstitution(user);
+  if (!canAssignSubstitution && !user.teacherId) {
+    return (
+      <AppShell user={user}>
+        <p className="error">บัญชีนี้ไม่มีสิทธิ์จัดสอนแทน</p>
+      </AppShell>
+    );
+  }
   const absencePeriodId = params.absencePeriodId ?? "";
   const isEditing = params.edit === "1";
   const sortDate = params.sortDate === "asc" ? "asc" : "desc";
+  const dateScope = params.dateScope === "today" ? "today" : "all";
+  const departments = await prisma.department.findMany({ orderBy: { name: "asc" } });
+  const selectedDepartmentId = departments.some((department) => department.id === params.departmentId)
+    ? params.departmentId ?? "all"
+    : "all";
+  const today = parseDateInput(toDateInputValue());
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  const absenceWhere: Prisma.TeacherAbsenceWhereInput = {};
+
+  if (dateScope === "today") {
+    absenceWhere.date = { gte: today, lt: tomorrow };
+  }
+
+  if (selectedDepartmentId !== "all") {
+    absenceWhere.teacher = { departmentId: selectedDepartmentId };
+  }
+
+  const pendingPeriodWhere: Prisma.AbsencePeriodWhereInput = !canAssignSubstitution
+    ? { substitution: { substituteTeacherId: user.teacherId ?? "" } }
+    : {};
+
+  if (Object.keys(absenceWhere).length > 0) {
+    pendingPeriodWhere.absence = absenceWhere;
+  }
 
   const pendingPeriods = await prisma.absencePeriod.findMany({
-    where: user.role === "TEACHER" ? { substitution: { substituteTeacherId: user.teacherId ?? "" } } : {},
+    where: pendingPeriodWhere,
     include: {
       absence: { include: { teacher: true } },
       schedule: { include: { classRoom: true, subject: true, specialRoom: true } },
@@ -42,7 +82,12 @@ export default async function SubstitutionsPage({
         include: { department: true }
       })
     : null;
-  const recommendations = selected && user.role !== "TEACHER" ? await recommendSubstitutes(selected.id) : [];
+  const recommendations = selected && canAssignSubstitution ? await recommendSubstitutes(selected.id) : [];
+  const listQuery = new URLSearchParams({
+    sortDate,
+    dateScope,
+    departmentId: selectedDepartmentId
+  });
 
   return (
     <AppShell user={user}>
@@ -60,6 +105,24 @@ export default async function SubstitutionsPage({
             {absencePeriodId ? <input type="hidden" name="absencePeriodId" value={absencePeriodId} /> : null}
             {isEditing ? <input type="hidden" name="edit" value="1" /> : null}
             <label>
+              ช่วงวันที่
+              <select name="dateScope" defaultValue={dateScope}>
+                <option value="all">ทั้งหมด</option>
+                <option value="today">วันนี้</option>
+              </select>
+            </label>
+            <label>
+              กลุ่มสาระ
+              <select name="departmentId" defaultValue={selectedDepartmentId}>
+                <option value="all">ทุกกลุ่มสาระ</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
               เรียงตามวันที่
               <select name="sortDate" defaultValue={sortDate}>
                 <option value="desc">ล่าสุดก่อน</option>
@@ -67,7 +130,7 @@ export default async function SubstitutionsPage({
               </select>
             </label>
             <button className="btn" type="submit">
-              เรียงลำดับ
+              แสดงรายการ
             </button>
           </form>
           <div className="table-wrap no-scroll">
@@ -84,7 +147,12 @@ export default async function SubstitutionsPage({
                 {pendingPeriods.map((period) => (
                   <tr key={period.id}>
                     <td>
-                      <a href={`/substitutions?absencePeriodId=${period.id}&sortDate=${sortDate}`}>
+                      <a
+                        href={`/substitutions?${new URLSearchParams({
+                          ...Object.fromEntries(listQuery),
+                          absencePeriodId: period.id
+                        }).toString()}`}
+                      >
                         {formatThaiDate(period.absence.date)}
                       </a>
                     </td>
@@ -114,7 +182,7 @@ export default async function SubstitutionsPage({
               </p>
               <p className="muted">
                 ครูเดิม: {selected.absence.teacher.name} ({selected.absence.teacher.department.name})
-                {selected.schedule.specialRoom ? ` · ห้องพิเศษ: ${selected.schedule.specialRoom.name}` : ""}
+                {selected.schedule.specialRoom ? ` · ห้อง/อาคาร: ${selected.schedule.specialRoom.name}` : ""}
               </p>
 
               {selected.substitution && !isEditing ? (
@@ -129,14 +197,21 @@ export default async function SubstitutionsPage({
                           : "ไม่พบข้อมูลครู"}
                       </p>
                     </div>
-                    {user.role !== "TEACHER" ? (
-                      <a className="btn primary" href={`/substitutions?absencePeriodId=${selected.id}&edit=1&sortDate=${sortDate}`}>
+                    {canAssignSubstitution ? (
+                      <a
+                        className="btn primary"
+                        href={`/substitutions?${new URLSearchParams({
+                          ...Object.fromEntries(listQuery),
+                          absencePeriodId: selected.id,
+                          edit: "1"
+                        }).toString()}`}
+                      >
                         แก้ไขการจัดสอนแทน
                       </a>
                     ) : null}
                   </div>
                 </div>
-              ) : user.role === "TEACHER" ? (
+              ) : !canAssignSubstitution ? (
                 <p className="muted">บัญชีครูดูรายการของตนเองได้ แต่จัดครูแทนไม่ได้</p>
               ) : recommendations.length === 0 ? (
                 <p className="error">ยังไม่พบครูที่ผ่านเงื่อนไขในคาบนี้</p>
@@ -145,7 +220,13 @@ export default async function SubstitutionsPage({
                   {selected.substitution && isEditing ? (
                     <div className="actions">
                       <span className="badge warning">กำลังแก้ไขการจัดสอนแทน</span>
-                      <a className="btn" href={`/substitutions?absencePeriodId=${selected.id}&sortDate=${sortDate}`}>
+                      <a
+                        className="btn"
+                        href={`/substitutions?${new URLSearchParams({
+                          ...Object.fromEntries(listQuery),
+                          absencePeriodId: selected.id
+                        }).toString()}`}
+                      >
                         ยกเลิก
                       </a>
                     </div>

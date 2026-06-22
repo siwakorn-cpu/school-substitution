@@ -1,18 +1,20 @@
 import { AppShell } from "@/components/AppShell";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canViewReports } from "@/lib/rbac";
 import { buildSubstitutionReportWhere, currentMonthInputValue, normalizeRange } from "@/lib/reportFilters";
+import { getTermOptions } from "@/lib/terms";
 
 export default async function ReportsPage({
   searchParams
 }: {
-  searchParams: Promise<{ range?: string; date?: string; month?: string; term?: string }>;
+  searchParams: Promise<{ range?: string; date?: string; month?: string; term?: string; departmentId?: string }>;
 }) {
   const user = await requireUser();
-  if (user.role === "TEACHER" || user.role === "DEPT_REP") {
+  if (!(await canViewReports(user))) {
     return (
       <AppShell user={user}>
-        <p className="error">บัญชีครูไม่มีสิทธิ์ดูรายงานรวม</p>
+        <p className="error">บัญชีนี้ไม่มีสิทธิ์ดูรายงานรวม</p>
       </AppShell>
     );
   }
@@ -21,12 +23,16 @@ export default async function ReportsPage({
   const range = normalizeRange(params.range);
   const selectedMonth = params.month || currentMonthInputValue();
   const selectedDate = params.date || new Date().toISOString().slice(0, 10);
-  const terms = await prisma.teachingSchedule.findMany({
-    distinct: ["term"],
-    select: { term: true },
-    orderBy: { term: "desc" }
-  });
-  const selectedTerm = params.term || terms[0]?.term || "1/2569";
+  const [termData, departments] = await Promise.all([
+    getTermOptions(),
+    prisma.department.findMany({ orderBy: { name: "asc" } })
+  ]);
+  const selectedTerm = params.term || termData.currentTerm;
+  const selectedDepartmentId = departments.some((department) => department.id === params.departmentId)
+    ? params.departmentId ?? "all"
+    : "all";
+  const selectedDepartment =
+    selectedDepartmentId === "all" ? null : departments.find((department) => department.id === selectedDepartmentId) ?? null;
   const report = buildSubstitutionReportWhere({
     range,
     date: selectedDate,
@@ -37,20 +43,45 @@ export default async function ReportsPage({
     range,
     date: selectedDate,
     month: selectedMonth,
-    term: selectedTerm
+    term: selectedTerm,
+    departmentId: selectedDepartmentId
   });
+  const reportLabel = selectedDepartment ? `${report.label} · กลุ่มสาระ ${selectedDepartment.name}` : report.label;
 
-  const [teachers, counts] = await Promise.all([
-    prisma.teacher.findMany({
-      include: { department: true },
-      orderBy: { code: "asc" }
-    }),
+  const teachers = await prisma.teacher.findMany({
+    where: selectedDepartment ? { departmentId: selectedDepartment.id } : {},
+    include: { department: true },
+    orderBy: { code: "asc" }
+  });
+  const reportWhere = selectedDepartment
+    ? { ...report.where, substituteTeacherId: { in: teachers.map((teacher) => teacher.id) } }
+    : report.where;
+  const [counts, substitutionDetails] = await Promise.all([
     prisma.substitution.groupBy({
-    by: ["substituteTeacherId"],
-      where: report.where,
+      by: ["substituteTeacherId"],
+      where: reportWhere,
       _count: { _all: true }
+    }),
+    prisma.substitution.findMany({
+      where: reportWhere,
+      include: {
+        absencePeriod: {
+          include: {
+            absence: { include: { teacher: true } },
+            schedule: {
+              include: {
+                subject: true,
+                classRoom: true,
+                specialRoom: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: [{ date: "desc" }, { period: "asc" }]
     })
   ]);
+  const substituteTeacherMap = new Map(teachers.map((teacher) => [teacher.id, teacher]));
   const countMap = new Map(counts.map((item) => [item.substituteTeacherId, item._count._all]));
   const rows = teachers
     .map((teacher) => ({
@@ -69,7 +100,7 @@ export default async function ReportsPage({
       <div className="page-head">
         <div>
           <h1>Dashboard สถิติ</h1>
-          <p className="muted">เปรียบเทียบภาระการเข้าแทนครูแต่ละคน · {report.label}</p>
+          <p className="muted">เปรียบเทียบภาระการเข้าแทนครูแต่ละคน · {reportLabel}</p>
         </div>
         <a className="btn primary" href={`/api/reports/export?${exportParams.toString()}`}>
           Export CSV
@@ -102,12 +133,22 @@ export default async function ReportsPage({
               <label>
                 ภาคเรียน
                 <select name="term" defaultValue={selectedTerm}>
-                  {terms.map((term) => (
-                    <option key={term.term} value={term.term}>
-                      {term.term}
+                  {termData.terms.map((term) => (
+                    <option key={term} value={term}>
+                      {term}
                     </option>
                   ))}
-                  {terms.length === 0 ? <option value="1/2569">1/2569</option> : null}
+                </select>
+              </label>
+              <label>
+                กลุ่มสาระ
+                <select name="departmentId" defaultValue={selectedDepartmentId}>
+                  <option value="all">ทุกกลุ่มสาระ</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -128,6 +169,55 @@ export default async function ReportsPage({
         <div className="card span-4 stat">
           <span className="muted">ครูในรายงาน</span>
           <strong>{rows.length}</strong>
+        </div>
+
+        <div className="card">
+          <h2>รายละเอียดการสอนแทน</h2>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ชื่อครูที่ลา</th>
+                  <th>คาบ</th>
+                  <th>รหัสวิชา</th>
+                  <th>วิชา</th>
+                  <th>ห้อง ม.</th>
+                  <th>ห้องเรียน</th>
+                  <th>ชื่อครูที่สอนแทน</th>
+                </tr>
+              </thead>
+              <tbody>
+                {substitutionDetails.length === 0 ? (
+                  <tr>
+                    <td className="muted" colSpan={7}>
+                      ไม่พบข้อมูลการสอนแทนในช่วงนี้
+                    </td>
+                  </tr>
+                ) : (
+                  substitutionDetails.map((item) => {
+                    const schedule = item.absencePeriod.schedule;
+                    const substituteTeacher = substituteTeacherMap.get(item.substituteTeacherId);
+
+                    return (
+                      <tr key={item.id}>
+                        <td>{item.absencePeriod.absence.teacher.name}</td>
+                        <td>{item.period}</td>
+                        <td>{schedule.subject.code || "-"}</td>
+                        <td>{schedule.subject.name}</td>
+                        <td>{schedule.classRoom.name}</td>
+                        <td>{schedule.specialRoom?.name ?? schedule.classRoom.name}</td>
+                        <td>
+                          {substituteTeacher
+                            ? `${substituteTeacher.code} - ${substituteTeacher.name}`
+                            : "-"}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="card">

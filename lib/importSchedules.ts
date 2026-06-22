@@ -10,6 +10,7 @@ export type ImportPreviewRow = {
   subject_code?: string;
   subject: string;
   special_room?: string;
+  room_building?: string;
 };
 
 export type ImportResult = {
@@ -56,7 +57,7 @@ export async function importSchedules(rows: ImportPreviewRow[], term = "1/2569")
     const classRoomName = String(row.class_room ?? "").trim();
     const subjectCode = String(row.subject_code ?? "").trim();
     const subjectName = String(row.subject ?? "").trim();
-    const specialRoomName = String(row.special_room ?? "").trim();
+    const specialRoomName = String(row.room_building ?? row.special_room ?? "").trim();
 
     if (!teacherCode || dayOfWeek === null || periods.length === 0 || !classRoomName || !subjectName) {
       errors.push(`แถว ${line}: ข้อมูลไม่ครบหรือรูปแบบวัน/คาบไม่ถูกต้อง`);

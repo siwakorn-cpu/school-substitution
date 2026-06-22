@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; registered?: string }>;
 }) {
   const user = await getCurrentUser();
   if (user) redirect("/dashboard");
@@ -15,6 +16,7 @@ export default async function LoginPage({
       <section className="login-card">
         <h1>เข้าสู่ระบบ</h1>
         <p className="muted">ระบบจัดครูสอนแทนและแลกคาบ</p>
+        {params.registered ? <p className="badge success">ส่งคำขอลงทะเบียนแล้ว รอผู้ดูแลระบบอนุมัติ</p> : null}
         {params.error ? <p className="error">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</p> : null}
         <form className="form" action="/api/auth/login" method="post">
           <label>
@@ -29,7 +31,9 @@ export default async function LoginPage({
             เข้าสู่ระบบ
           </button>
         </form>
-        <p className="muted">ทดลองใช้: admin / admin1234</p>
+        <p className="muted login-links">
+          ยังไม่มีบัญชี <Link href="/register">ลงทะเบียน</Link>
+        </p>
       </section>
     </main>
   );

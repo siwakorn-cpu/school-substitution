@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function TeachersPage() {
-  redirect("/data-upload");
+  redirect("/data-upload/teachers");
 }
