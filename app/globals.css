@@ -327,6 +327,27 @@ a.stat:hover {
   color: var(--accent-dark);
 }
 
+.period-status-done {
+  border-color: var(--success);
+  background: #dde9e2;
+  color: var(--success);
+  font-weight: 700;
+}
+
+.period-status-pending {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
+.period-status-none {
+  border-color: #fecdca;
+  background: #f4dcd8;
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .form {
   display: grid;
   gap: 12px;

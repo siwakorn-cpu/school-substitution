@@ -47,7 +47,12 @@ export default async function AbsencesPage({
       where: canManageAllAbsences ? {} : { teacherId: user.teacherId ?? "" },
       orderBy: { createdAt: "desc" },
       take: 10,
-      include: { teacher: true, periods: { include: { schedule: { include: { subject: true } } } } }
+      include: {
+        teacher: true,
+        periods: {
+          include: { schedule: { include: { subject: true } }, substitution: true, swapRequests: true }
+        }
+      }
     }),
     prisma.teacherAbsence.findMany({
       where: {
@@ -235,7 +240,7 @@ export default async function AbsencesPage({
                       <div className="actions">
                         {absence.periods.map((period) => (
                           <Link
-                            className="btn"
+                            className={`btn ${periodStatusClass(period)}`}
                             key={period.id}
                             href={
                               absence.type === "OFFICIAL" || absence.type === "PERSONAL"
@@ -326,4 +331,15 @@ function absenceTypeLabel(type: string) {
   if (type === "OFFICIAL") return "ไปราชการ";
   if (type === "PERSONAL") return "ลากิจ";
   return "ลาป่วย";
+}
+
+// Status colour of a period button: green = handled, yellow = pending approval, red = not handled yet.
+function periodStatusClass(period: {
+  substitution: unknown | null;
+  swapRequests: { status: string }[];
+}) {
+  if (period.substitution) return "period-status-done";
+  if (period.swapRequests.some((swap) => swap.status === "APPROVED")) return "period-status-done";
+  if (period.swapRequests.some((swap) => swap.status === "PENDING")) return "period-status-pending";
+  return "period-status-none";
 }
