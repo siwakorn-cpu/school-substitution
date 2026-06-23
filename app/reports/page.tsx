@@ -1,9 +1,16 @@
+import type { Prisma } from "@prisma/client";
 import { AppShell } from "@/components/AppShell";
 import { requireUser } from "@/lib/auth";
-import { formatThaiDate } from "@/lib/date";
+import { formatThaiDate, toDateInputValue } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { canViewReports } from "@/lib/rbac";
-import { buildSubstitutionReportWhere, currentMonthInputValue, normalizeRange } from "@/lib/reportFilters";
+import {
+  buildSubstitutionReportWhere,
+  currentMonthInputValue,
+  normalizeRange,
+  parseDateInput,
+  parseMonthInput
+} from "@/lib/reportFilters";
 import { getTermOptions } from "@/lib/terms";
 
 export default async function ReportsPage({
@@ -23,7 +30,7 @@ export default async function ReportsPage({
   const params = await searchParams;
   const range = normalizeRange(params.range);
   const selectedMonth = params.month || currentMonthInputValue();
-  const selectedDate = params.date || new Date().toISOString().slice(0, 10);
+  const selectedDate = params.date || toDateInputValue();
   const [termData, departments] = await Promise.all([
     getTermOptions(),
     prisma.department.findMany({ orderBy: { name: "asc" } })
@@ -96,8 +103,56 @@ export default async function ReportsPage({
   const max = Math.max(1, ...rows.map((row) => row.count));
   const total = rows.reduce((sum, row) => sum + row.count, 0);
 
+  // Leave summary (days) for the same range/department — counts ลาป่วย (LEAVE) and ลากิจ (PERSONAL) only.
+  const leaveWhere: Prisma.TeacherAbsenceWhereInput = { type: { in: ["LEAVE", "PERSONAL"] } };
+  if (range === "day") {
+    const date = parseDateInput(selectedDate);
+    if (date) {
+      leaveWhere.date = { gte: date, lt: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1) };
+    }
+  } else if (range === "month") {
+    const month = parseMonthInput(selectedMonth);
+    if (month) {
+      leaveWhere.date = { gte: month, lt: new Date(month.getFullYear(), month.getMonth() + 1, 1) };
+    }
+  } else if (range === "term") {
+    leaveWhere.periods = { some: { schedule: { term: selectedTerm } } };
+  }
+  if (selectedDepartment) {
+    leaveWhere.teacher = { departmentId: selectedDepartment.id };
+  }
+
+  const leaveCounts = await prisma.teacherAbsence.groupBy({
+    by: ["teacherId", "type"],
+    where: leaveWhere,
+    _count: { _all: true }
+  });
+  const leaveByTeacher = new Map<string, { sick: number; personal: number }>();
+  for (const item of leaveCounts) {
+    const entry = leaveByTeacher.get(item.teacherId) ?? { sick: 0, personal: 0 };
+    if (item.type === "LEAVE") entry.sick = item._count._all;
+    else if (item.type === "PERSONAL") entry.personal = item._count._all;
+    leaveByTeacher.set(item.teacherId, entry);
+  }
+  const leaveRows = teachers
+    .map((teacher) => {
+      const entry = leaveByTeacher.get(teacher.id) ?? { sick: 0, personal: 0 };
+      return {
+        id: teacher.id,
+        code: teacher.code,
+        name: teacher.name,
+        department: teacher.department.name,
+        sick: entry.sick,
+        personal: entry.personal,
+        total: entry.sick + entry.personal
+      };
+    })
+    .filter((row) => row.total > 0)
+    .sort((a, b) => b.total - a.total || a.code.localeCompare(b.code));
+
   return (
     <AppShell user={user}>
+      <div className="reports-compact">
       <div className="page-head">
         <div>
           <h1>Dashboard สถิติ</h1>
@@ -254,7 +309,48 @@ export default async function ReportsPage({
             </table>
           </div>
         </div>
+
+        <div className="card">
+          <h2>สรุปจำนวนลา (วัน)</h2>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ครู</th>
+                  <th>กลุ่มสาระ</th>
+                  <th>ลาป่วย (วัน)</th>
+                  <th>ลากิจ (วัน)</th>
+                  <th>รวม (วัน)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaveRows.length === 0 ? (
+                  <tr>
+                    <td className="muted" colSpan={5}>
+                      ไม่พบข้อมูลการลาในช่วงนี้
+                    </td>
+                  </tr>
+                ) : (
+                  leaveRows.map((row) => (
+                    <tr key={row.id}>
+                      <td className="no-glossary">
+                        {row.code} - {row.name}
+                      </td>
+                      <td>{row.department}</td>
+                      <td>{row.sick}</td>
+                      <td>{row.personal}</td>
+                      <td>
+                        <strong>{row.total}</strong>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
+      </div>
     </AppShell>
   );
 }

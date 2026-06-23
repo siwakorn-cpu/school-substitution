@@ -348,6 +348,59 @@ a.stat:hover {
   font-weight: 700;
 }
 
+/* Compact layout for the reports (Dashboard สถิติ) page */
+.reports-compact .grid {
+  gap: 10px;
+}
+
+.reports-compact .card {
+  padding: 12px;
+}
+
+.reports-compact h1 {
+  font-size: 22px;
+}
+
+.reports-compact h2 {
+  font-size: 15px;
+}
+
+.reports-compact .muted {
+  font-size: 12px;
+}
+
+.reports-compact .stat strong {
+  font-size: 22px;
+}
+
+.reports-compact label {
+  font-size: 12px;
+  gap: 4px;
+}
+
+.reports-compact input,
+.reports-compact select {
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 13px;
+}
+
+.reports-compact table {
+  font-size: 12px;
+}
+
+.reports-compact th,
+.reports-compact td {
+  padding: 5px 8px;
+  line-height: 1.3;
+}
+
+.reports-compact .btn {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
 .form {
   display: grid;
   gap: 12px;

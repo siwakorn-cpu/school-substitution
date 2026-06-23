@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { validateSubstitute } from "@/lib/recommendSubstitutes";
 import { validateSwapCandidate } from "@/lib/swapCandidates";
 import { redirectTo } from "@/lib/redirect";
-import { parseDateInput } from "@/lib/date";
+import { parseDateInput, toDateInputValue } from "@/lib/date";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -29,6 +29,12 @@ export async function POST(request: Request) {
       where: { id: absencePeriodId },
       include: { absence: true, schedule: true }
     });
+
+    // Back-dated changes are admin-only (matches the จัดสอนแทน page).
+    const today = parseDateInput(toDateInputValue());
+    if (absencePeriod && absencePeriod.absence.date < today && user.role !== "ADMIN") {
+      return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+    }
 
     if (valid && absencePeriod) {
       const subject = requestedSubjectId
@@ -89,6 +95,13 @@ export async function POST(request: Request) {
       include: { absence: true, schedule: true }
     });
     const target = await validateSwapCandidate(absencePeriodId, toScheduleId);
+
+    // Back-dated changes are admin-only (matches the จัดสอนแทน page).
+    const today = parseDateInput(toDateInputValue());
+    if (absencePeriod && absencePeriod.absence.date < today && user.role !== "ADMIN") {
+      return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+    }
+
     const canCreateForThisPeriod =
       (await canApproveScheduleChange(user)) ||
       (Boolean(user.teacherId) && absencePeriod?.absence.teacherId === user.teacherId);

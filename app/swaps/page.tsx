@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { requireUser } from "@/lib/auth";
 import { canApproveSwap, canManageSwap } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
-import { formatThaiDate, nextDateForDayOfWeek, thaiDays, toDateInputValue } from "@/lib/date";
+import { formatThaiDate, nextDateForDayOfWeek, parseDateInput, thaiDays, toDateInputValue } from "@/lib/date";
 import { recommendSubstitutes } from "@/lib/recommendSubstitutes";
 import { getSwapCandidates } from "@/lib/swapCandidates";
 
@@ -115,7 +115,10 @@ export default async function SwapsPage({
   const canCancelSwap =
     existingSwapRequest?.status === "PENDING" &&
     (canApproveScheduleChange || (Boolean(user.teacherId) && existingSwapRequest.requesterTeacher.id === user.teacherId));
-  const showCandidates = !selected || isEditing || !hasResolution;
+  const today = parseDateInput(toDateInputValue());
+  const selectedIsPast = selected ? selected.absence.date < today : false;
+  const canActOnSelected = !selectedIsPast || user.role === "ADMIN";
+  const showCandidates = (!selected || isEditing || !hasResolution) && canActOnSelected;
 
   return (
     <AppShell user={user}>
@@ -233,6 +236,10 @@ export default async function SwapsPage({
                     </div>
                   </div>
                 </div>
+              ) : null}
+
+              {selected && !canActOnSelected && !hasResolution ? (
+                <p className="badge warning">คาบย้อนหลัง — ดำเนินการได้เฉพาะผู้ดูแลระบบ</p>
               ) : null}
 
               {showCandidates ? (
