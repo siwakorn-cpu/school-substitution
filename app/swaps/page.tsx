@@ -42,7 +42,10 @@ export default async function SwapsPage({
         absence: {
           type: { in: ["OFFICIAL", "PERSONAL"] },
           ...(isTeacherScoped ? { teacherId: user.teacherId ?? "" } : {})
-        }
+        },
+        // Hide periods already handled: an entered substitute, or an active swap (pending/approved).
+        substitution: null,
+        swapRequests: { none: { status: { in: ["PENDING", "APPROVED"] } } }
       },
       include: {
         absence: { include: { teacher: true } },
@@ -424,22 +427,26 @@ export default async function SwapsPage({
                     </td>
                     <td>{request.note || "-"}</td>
                     <td>
-                      {request.status === "PENDING" && (canApproveScheduleChange || user.teacherId === request.targetTeacherId) ? (
+                      {canApproveScheduleChange || user.teacherId === request.targetTeacherId ? (
                         <div className="actions">
-                          <form action="/api/swaps" method="post">
-                            <input type="hidden" name="intent" value="approve" />
-                            <input type="hidden" name="id" value={request.id} />
-                            <button className="btn primary" type="submit">
-                              อนุมัติ
-                            </button>
-                          </form>
-                          <form action="/api/swaps" method="post">
-                            <input type="hidden" name="intent" value="reject" />
-                            <input type="hidden" name="id" value={request.id} />
-                            <button className="btn danger" type="submit">
-                              ไม่อนุมัติ
-                            </button>
-                          </form>
+                          {request.status !== "APPROVED" ? (
+                            <form action="/api/swaps" method="post">
+                              <input type="hidden" name="intent" value="approve" />
+                              <input type="hidden" name="id" value={request.id} />
+                              <button className="btn primary" type="submit">
+                                อนุมัติ
+                              </button>
+                            </form>
+                          ) : null}
+                          {request.status !== "REJECTED" ? (
+                            <form action="/api/swaps" method="post">
+                              <input type="hidden" name="intent" value="reject" />
+                              <input type="hidden" name="id" value={request.id} />
+                              <button className="btn danger" type="submit">
+                                ไม่อนุมัติ
+                              </button>
+                            </form>
+                          ) : null}
                         </div>
                       ) : (
                         "-"

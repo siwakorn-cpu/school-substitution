@@ -190,10 +190,14 @@ export async function POST(request: Request) {
     }
 
     if (intent === "reject") {
-      await prisma.swapRequest.update({
-        where: { id },
-        data: { status: "REJECTED", approvedById: user.id }
-      });
+      // Reverting a previously approved swap: also remove its temporary schedules.
+      await prisma.$transaction([
+        prisma.temporarySchedule.deleteMany({ where: { sourceType: "SWAP", sourceId: id } }),
+        prisma.swapRequest.update({
+          where: { id },
+          data: { status: "REJECTED", approvedById: user.id }
+        })
+      ]);
     } else {
       const swap = await prisma.swapRequest.findUnique({ where: { id } });
       if (swap) {
@@ -205,6 +209,8 @@ export async function POST(request: Request) {
         if (fromSchedule && toSchedule) {
           const targetDate = swap.toDate ?? dateForDayOfWeek(swap.date, toSchedule.dayOfWeek);
           await prisma.$transaction([
+            // Clear any existing temp schedules first so re-approving never duplicates.
+            prisma.temporarySchedule.deleteMany({ where: { sourceType: "SWAP", sourceId: swap.id } }),
             prisma.swapRequest.update({
               where: { id },
               data: { status: "APPROVED", approvedById: user.id }
