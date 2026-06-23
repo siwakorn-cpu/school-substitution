@@ -31,6 +31,13 @@ const settingsLinks = [
     descriptionEn: "Reset system data after backup and RESET confirmation"
   },
   {
+    href: "/settings/backup",
+    title: "สำรองข้อมูล",
+    titleEn: "Back up data",
+    description: "ดาวน์โหลดข้อมูลทั้งระบบเป็นไฟล์ JSON ไฟล์เดียว เก็บไว้กู้คืนภายหลัง",
+    descriptionEn: "Download the whole system as a single JSON file for later restore"
+  },
+  {
     href: "/settings/restore",
     title: "กู้คืนข้อมูล",
     titleEn: "Restore from backup",
