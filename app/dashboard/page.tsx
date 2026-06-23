@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { formatThaiDate, toDateInputValue } from "@/lib/date";
 import { roleLabel } from "@/lib/permissions";
 import { getDepartmentScopeId, roleUsesDepartmentScope } from "@/lib/departmentScope";
+import { ShareSubstitutionImage, type ShareSubstitutionData } from "@/components/ShareSubstitutionImage";
 
 type StatCard = { label: string; value: number; href?: string; highlight?: boolean };
 
@@ -92,13 +93,36 @@ export default async function DashboardPage() {
     );
   }
 
-  const mySubstitutions = user.teacherId
-    ? await prisma.substitution.findMany({
-        where: { substituteTeacherId: user.teacherId },
-        orderBy: { date: "desc" },
-        take: 5
-      })
-    : [];
+  const [mySubstitutions, myTeacher] = user.teacherId
+    ? await Promise.all([
+        prisma.substitution.findMany({
+          where: { substituteTeacherId: user.teacherId },
+          orderBy: { date: "desc" },
+          take: 50,
+          include: {
+            absencePeriod: {
+              include: {
+                absence: { include: { teacher: true } },
+                schedule: { include: { subject: true, classRoom: true, specialRoom: true } }
+              }
+            }
+          }
+        }),
+        prisma.teacher.findUnique({ where: { id: user.teacherId } })
+      ])
+    : [[], null];
+
+  const myName = myTeacher ? `${myTeacher.code} - ${myTeacher.name}` : "";
+  const mySubstitutionItems: ShareSubstitutionData[] = mySubstitutions.map((item) => ({
+    date: formatThaiDate(item.absencePeriod.absence.date),
+    period: item.period,
+    classRoom: item.absencePeriod.schedule.classRoom.name,
+    subject: item.absencePeriod.schedule.subject.name,
+    originalTeacher: item.absencePeriod.absence.teacher.name,
+    specialRoom: item.absencePeriod.schedule.specialRoom?.name ?? null,
+    substituteTeacher: myName,
+    note: item.note
+  }));
 
   const cardSpan = cards.length % 3 === 0 ? "span-4" : "span-6";
 
@@ -136,29 +160,15 @@ export default async function DashboardPage() {
         {user.teacherId ? (
           <div className="card span-12">
             <h2>รายการสอนแทนของฉัน</h2>
-            {mySubstitutions.length === 0 ? (
+            {mySubstitutionItems.length === 0 ? (
               <p className="muted">ยังไม่มีรายการสอนแทนล่าสุด</p>
             ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>วันที่</th>
-                      <th>คาบ</th>
-                      <th>หมายเหตุ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mySubstitutions.map((item) => (
-                      <tr key={item.id}>
-                        <td>{formatThaiDate(item.date)}</td>
-                        <td>{item.period}</td>
-                        <td>{item.note || "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ShareSubstitutionImage
+                title="รายการสอนแทนของฉัน"
+                subtitle={myTeacher ? `ครูสอนแทน: ${myTeacher.name}` : undefined}
+                filename={`สอนแทน-${myTeacher?.name ?? "ฉัน"}`}
+                items={mySubstitutionItems}
+              />
             )}
           </div>
         ) : null}
