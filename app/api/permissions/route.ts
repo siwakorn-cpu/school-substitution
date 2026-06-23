@@ -17,5 +17,5 @@ export async function POST(request: Request) {
     })
   );
 
-  return redirectTo(request, "/permissions?saved=1");
+  return redirectTo(request, "/settings/permissions?saved=1");
 }

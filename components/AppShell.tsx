@@ -12,8 +12,7 @@ const links = [
   { href: "/reports", label: "สถิติ", permissions: ["view_reports"] },
   { href: "/data-upload", label: "อัพโหลดข้อมูล", permissions: ["manage_teacher_data", "import_schedules"] },
   { href: "/users", label: "จัดการผู้ใช้", adminOnly: true },
-  { href: "/permissions", label: "ปรับสิทธิ์", adminOnly: true },
-  { href: "/terms/start-new", label: "เริ่มภาคเรียนใหม่", adminOnly: true }
+  { href: "/settings", label: "ตั้งค่าระบบ", adminOnly: true }
 ] satisfies {
   href: string;
   label: string;

@@ -749,6 +749,17 @@ th {
   align-items: center;
 }
 
+.settings-card {
+  display: grid;
+  gap: 8px;
+  color: inherit;
+}
+
+.settings-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.08);
+}
+
 .btn:disabled,
 button:disabled {
   cursor: not-allowed;
