@@ -125,6 +125,14 @@ export default async function SubstitutionsPage({
         include: { department: true }
       })
     : null;
+  // Audit trail (who assigned + when) — visible to ADMIN only.
+  const assignedByUser =
+    user.role === "ADMIN" && selected?.substitution
+      ? await prisma.user.findUnique({
+          where: { id: selected.substitution.assignedById },
+          select: { username: true }
+        })
+      : null;
   const printStartDateValue = params.printStartDate ?? toDateInputValue();
   const printEndDateValue = params.printEndDate ?? printStartDateValue;
   const printStartDate = parseDateInput(printStartDateValue);
@@ -362,6 +370,14 @@ export default async function SubstitutionsPage({
                           "ไม่พบข้อมูลครู"
                         )}
                       </p>
+                      {user.role === "ADMIN" && selected.substitution ? (
+                        <p className="muted audit-line">
+                          บันทึกโดย: <span className="no-glossary">{assignedByUser?.username ?? "ไม่ทราบ"}</span> · เมื่อ{" "}
+                          {new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short" }).format(
+                            selected.substitution.createdAt
+                          )}
+                        </p>
+                      ) : null}
                     </div>
                     {canEditSelectedSubstitution ? (
                       <a

@@ -163,12 +163,42 @@ export default async function DashboardPage() {
             {mySubstitutionItems.length === 0 ? (
               <p className="muted">ยังไม่มีรายการสอนแทนล่าสุด</p>
             ) : (
-              <ShareSubstitutionImage
-                title="รายการสอนแทนของฉัน"
-                subtitle={myTeacher ? `ครูสอนแทน: ${myTeacher.name}` : undefined}
-                filename={`สอนแทน-${myTeacher?.name ?? "ฉัน"}`}
-                items={mySubstitutionItems}
-              />
+              <>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>วันที่</th>
+                        <th>คาบ</th>
+                        <th>ม.</th>
+                        <th>วิชา</th>
+                        <th>ครูเดิม</th>
+                        <th>ห้อง/อาคาร</th>
+                        <th>ครูสอนแทน</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mySubstitutionItems.map((item, index) => (
+                        <tr key={`${item.date}-${item.period}-${item.classRoom}-${index}`}>
+                          <td>{item.date}</td>
+                          <td>{item.period}</td>
+                          <td>{item.classRoom}</td>
+                          <td>{item.subject}</td>
+                          <td className="no-glossary">{item.originalTeacher}</td>
+                          <td>{item.specialRoom || "-"}</td>
+                          <td className="no-glossary">{item.substituteTeacher}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <ShareSubstitutionImage
+                  title="รายการสอนแทนของฉัน"
+                  subtitle={myTeacher ? `ครูสอนแทน: ${myTeacher.name}` : undefined}
+                  filename={`สอนแทน-${myTeacher?.name ?? "ฉัน"}`}
+                  items={mySubstitutionItems}
+                />
+              </>
             )}
           </div>
         ) : null}

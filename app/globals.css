@@ -348,6 +348,11 @@ a.stat:hover {
   font-weight: 700;
 }
 
+.audit-line {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
 /* Compact layout for the reports (Dashboard สถิติ) page */
 .reports-compact .grid {
   gap: 10px;

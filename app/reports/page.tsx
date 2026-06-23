@@ -91,6 +91,18 @@ export default async function ReportsPage({
   ]);
   const substituteTeacherMap = new Map(teachers.map((teacher) => [teacher.id, teacher]));
   const countMap = new Map(counts.map((item) => [item.substituteTeacherId, item._count._all]));
+  // Audit trail (who recorded each substitution + when) — ADMIN only.
+  const isAdmin = user.role === "ADMIN";
+  const assignedByMap = new Map<string, string>();
+  if (isAdmin && substitutionDetails.length > 0) {
+    const assignedUsers = await prisma.user.findMany({
+      where: { id: { in: Array.from(new Set(substitutionDetails.map((item) => item.assignedById))) } },
+      select: { id: true, username: true }
+    });
+    for (const account of assignedUsers) assignedByMap.set(account.id, account.username);
+  }
+  const auditDateTime = (value: Date) =>
+    new Intl.DateTimeFormat("th-TH", { dateStyle: "short", timeStyle: "short" }).format(value);
   const rows = teachers
     .map((teacher) => ({
       id: teacher.id,
@@ -241,12 +253,14 @@ export default async function ReportsPage({
                   <th>ห้อง ม.</th>
                   <th>ห้องเรียน</th>
                   <th>ชื่อครูที่สอนแทน</th>
+                  {isAdmin ? <th>บันทึกโดย</th> : null}
+                  {isAdmin ? <th>เวลาบันทึก</th> : null}
                 </tr>
               </thead>
               <tbody>
                 {substitutionDetails.length === 0 ? (
                   <tr>
-                    <td className="muted" colSpan={8}>
+                    <td className="muted" colSpan={isAdmin ? 10 : 8}>
                       ไม่พบข้อมูลการสอนแทนในช่วงนี้
                     </td>
                   </tr>
@@ -269,6 +283,10 @@ export default async function ReportsPage({
                             ? `${substituteTeacher.code} - ${substituteTeacher.name}`
                             : "-"}
                         </td>
+                        {isAdmin ? (
+                          <td className="no-glossary">{assignedByMap.get(item.assignedById) ?? "ไม่ทราบ"}</td>
+                        ) : null}
+                        {isAdmin ? <td>{auditDateTime(item.createdAt)}</td> : null}
                       </tr>
                     );
                   })
