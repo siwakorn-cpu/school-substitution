@@ -23,10 +23,18 @@ export async function POST(request: Request) {
     await prisma.teacher.update({
       where: { id: String(formData.get("id") ?? "") },
       data: {
+        code: String(formData.get("code") ?? "").trim(),
         name: String(formData.get("name") ?? "").trim(),
         departmentId: String(formData.get("departmentId") ?? ""),
         status: String(formData.get("status") ?? "ACTIVE") === "INACTIVE" ? "INACTIVE" : "ACTIVE"
       }
+    });
+  }
+
+  if (intent === "remove") {
+    await prisma.teacher.update({
+      where: { id: String(formData.get("id") ?? "") },
+      data: { status: "INACTIVE" }
     });
   }
 

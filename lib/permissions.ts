@@ -48,6 +48,27 @@ export const PERMISSIONS = [
     descriptionEn: "View combined reports and export report data"
   },
   {
+    key: "export_teacher_substitution_image",
+    label: "Export รูปสรุปสอนแทนรายครู",
+    labelEn: "Export teacher substitution image",
+    description: "สร้างรูปภาพสรุปสอนแทนรายครูเมื่อจัดคาบของครูคนนั้นครบแล้ว",
+    descriptionEn: "Create a teacher-level substitution summary image after all periods are assigned"
+  },
+  {
+    key: "export_department_substitution_image",
+    label: "Export รูปสรุปสอนแทนรายกลุ่มสาระ",
+    labelEn: "Export department substitution image",
+    description: "สร้างรูปภาพสรุปสอนแทนของกลุ่มสาระเมื่อจัดคาบของกลุ่มสาระนั้นครบแล้ว",
+    descriptionEn: "Create a department-level substitution summary image after all periods are assigned"
+  },
+  {
+    key: "export_daily_substitution_image",
+    label: "Export รูปสรุปสอนแทนรายวัน",
+    labelEn: "Export daily substitution image",
+    description: "สร้างรูปภาพสรุปสอนแทนครูทุกคนที่ลาในวันหรือช่วงวันที่เลือก",
+    descriptionEn: "Create a daily substitution summary image for all absent teachers in the selected date range"
+  },
+  {
     key: "manage_teacher_data",
     label: "จัดการข้อมูลครู",
     labelEn: "Manage teacher data",
@@ -70,8 +91,21 @@ const ADMIN_PERMISSIONS = new Set<PermissionKey>(PERMISSIONS.map((permission) =>
 const DEFAULT_ROLE_PERMISSIONS: Record<(typeof MANAGED_ROLES)[number], PermissionKey[]> = {
   TEACHER: ["record_own_absence", "manage_swaps"],
   PERSONNEL: ["manage_all_absences", "manage_substitutions", "view_reports"],
-  HEAD: ["manage_substitutions", "manage_swaps", "approve_schedule_changes", "view_reports"],
-  DEPT_REP: ["manage_substitutions", "manage_swaps", "approve_schedule_changes"]
+  HEAD: [
+    "manage_substitutions",
+    "manage_swaps",
+    "approve_schedule_changes",
+    "view_reports",
+    "export_teacher_substitution_image",
+    "export_department_substitution_image"
+  ],
+  DEPT_REP: [
+    "manage_substitutions",
+    "manage_swaps",
+    "approve_schedule_changes",
+    "export_teacher_substitution_image",
+    "export_department_substitution_image"
+  ]
 };
 
 export function roleLabel(role: Role) {

@@ -76,6 +76,13 @@ export async function recommendSubstitutes(
     const substitutionCount = await prisma.substitution.count({
       where: { substituteTeacherId: teacher.id, absencePeriodId: { not: absencePeriod.id } }
     });
+    const teachingCountToday = await prisma.teachingSchedule.count({
+      where: {
+        teacherId: teacher.id,
+        dayOfWeek: schedule.dayOfWeek,
+        term: schedule.term
+      }
+    });
     const adjacent = await prisma.teachingSchedule.findMany({
       where: {
         teacherId: teacher.id,
@@ -87,6 +94,7 @@ export async function recommendSubstitutes(
 
     let score = 45;
     const reasons = ["ว่างในคาบนี้"];
+    reasons.push(`วันนี้สอน ${teachingCountToday} คาบ`);
     const warnings: string[] = [];
 
     if (teacher.departmentId === absence.teacher.departmentId) {

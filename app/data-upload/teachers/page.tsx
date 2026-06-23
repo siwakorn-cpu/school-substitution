@@ -146,7 +146,7 @@ export default async function TeacherDataPage({
           </div>
         </div>
 
-        <div className="card span-8 teacher-compact-section">
+        <div className="card teacher-compact-section">
           <h2>รายชื่อครู</h2>
           <div className="table-wrap">
             <table className="teacher-list-table">
@@ -171,25 +171,50 @@ export default async function TeacherDataPage({
                       </span>
                     </td>
                     <td>
-                      <form className="actions compact-inline-form" action="/api/teachers" method="post">
-                        <input type="hidden" name="intent" value="update" />
-                        <input type="hidden" name="id" value={teacher.id} />
-                        <input name="name" defaultValue={teacher.name} aria-label="ชื่อครู" />
-                        <select name="departmentId" defaultValue={teacher.departmentId} aria-label="กลุ่มสาระ">
-                          {departments.map((department) => (
-                            <option key={department.id} value={department.id}>
-                              {department.name}
-                            </option>
-                          ))}
-                        </select>
-                        <select name="status" defaultValue={teacher.status} aria-label="สถานะ">
-                          <option value="ACTIVE">ใช้งาน</option>
-                          <option value="INACTIVE">ปิดใช้งาน</option>
-                        </select>
-                        <button className="btn" type="submit">
-                          บันทึก
-                        </button>
-                      </form>
+                      <div className="teacher-row-actions">
+                        <details className="teacher-edit-toggle">
+                          <summary>แก้ไข</summary>
+                          <form className="teacher-edit-form" action="/api/teachers" method="post">
+                            <input type="hidden" name="intent" value="update" />
+                            <input type="hidden" name="id" value={teacher.id} />
+                            <label>
+                              รหัสครู
+                              <input name="code" defaultValue={teacher.code} required />
+                            </label>
+                            <label>
+                              ชื่อครู
+                              <input name="name" defaultValue={teacher.name} required />
+                            </label>
+                            <label>
+                              กลุ่มสาระ
+                              <select name="departmentId" defaultValue={teacher.departmentId} aria-label="กลุ่มสาระ">
+                                {departments.map((department) => (
+                                  <option key={department.id} value={department.id}>
+                                    {department.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              สถานะ
+                              <select name="status" defaultValue={teacher.status} aria-label="สถานะ">
+                                <option value="ACTIVE">ใช้งาน</option>
+                                <option value="INACTIVE">ปิดใช้งาน</option>
+                              </select>
+                            </label>
+                            <button className="btn primary" type="submit">
+                              บันทึกแก้ไข
+                            </button>
+                          </form>
+                        </details>
+                        <form action="/api/teachers" method="post">
+                          <input type="hidden" name="intent" value="remove" />
+                          <input type="hidden" name="id" value={teacher.id} />
+                          <button className="btn danger" type="submit">
+                            เอาออก
+                          </button>
+                        </form>
+                      </div>
                     </td>
                   </tr>
                 ))}

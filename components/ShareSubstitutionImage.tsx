@@ -14,10 +14,24 @@ export type ShareSubstitutionData = {
   note?: string | null;
 };
 
-export function ShareSubstitutionImage(data: ShareSubstitutionData) {
+export function ShareSubstitutionImage({
+  title = "การจัดสอนแทน",
+  subtitle,
+  filename = "จัดสอนแทน",
+  items,
+  disabledReason
+}: {
+  title?: string;
+  subtitle?: string;
+  filename?: string;
+  items: ShareSubstitutionData[];
+  disabledReason?: string | null;
+}) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const firstItem = items[0];
+  const disabled = busy || items.length === 0 || Boolean(disabledReason);
 
   async function buildBlob(): Promise<Blob | null> {
     if (!cardRef.current) return null;
@@ -33,7 +47,7 @@ export function ShareSubstitutionImage(data: ShareSubstitutionData) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `จัดสอนแทน-${data.date}-คาบ${data.period}.png`;
+    link.download = `${filename}.png`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -41,17 +55,18 @@ export function ShareSubstitutionImage(data: ShareSubstitutionData) {
   }
 
   async function handleShare() {
+    if (disabled) return;
     setBusy(true);
     setMessage(null);
     try {
       const blob = await buildBlob();
       if (!blob) throw new Error("no-blob");
-      const file = new File([blob], `จัดสอนแทน-คาบ${data.period}.png`, { type: "image/png" });
+      const file = new File([blob], `${filename}.png`, { type: "image/png" });
       const nav = navigator as Navigator & {
         canShare?: (data?: ShareData) => boolean;
       };
       if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-        await nav.share({ files: [file], title: "การจัดสอนแทน" });
+        await nav.share({ files: [file], title });
       } else {
         downloadBlob(blob);
         setMessage("อุปกรณ์นี้แชร์ตรงไม่ได้ ระบบดาวน์โหลดรูปให้แล้ว ส่งเข้า LINE ได้เอง");
@@ -66,6 +81,7 @@ export function ShareSubstitutionImage(data: ShareSubstitutionData) {
   }
 
   async function handleDownload() {
+    if (disabled) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -80,52 +96,49 @@ export function ShareSubstitutionImage(data: ShareSubstitutionData) {
 
   return (
     <div className="share-block">
-      <div className="share-card no-glossary" ref={cardRef}>
+      <div className="share-card share-card-export-source no-glossary" ref={cardRef}>
         <div className="share-card-head">
-          <span className="share-card-tag">การจัดสอนแทน</span>
-          <strong className="share-card-date">{data.date}</strong>
+          <span className="share-card-tag">{title}</span>
+          <strong className="share-card-date">{firstItem?.date ?? ""}</strong>
         </div>
-        <dl className="share-card-rows">
-          <div>
-            <dt>คาบ</dt>
-            <dd>
-              คาบ {data.period} · {data.classRoom}
-            </dd>
-          </div>
-          <div>
-            <dt>วิชา</dt>
-            <dd>{data.subject}</dd>
-          </div>
-          {data.specialRoom ? (
-            <div>
-              <dt>ห้อง/อาคาร</dt>
-              <dd>{data.specialRoom}</dd>
-            </div>
-          ) : null}
-          <div>
-            <dt>ครูเดิม</dt>
-            <dd>{data.originalTeacher}</dd>
-          </div>
-          <div className="share-card-highlight">
-            <dt>ครูสอนแทน</dt>
-            <dd>{data.substituteTeacher}</dd>
-          </div>
-          {data.note ? (
-            <div>
-              <dt>หมายเหตุ</dt>
-              <dd>{data.note}</dd>
-            </div>
-          ) : null}
-        </dl>
+        {subtitle ? <p className="share-card-subtitle">{subtitle}</p> : null}
+        <table className="share-card-table">
+          <thead>
+            <tr>
+              <th>วันที่</th>
+              <th>คาบ</th>
+              <th>ม.</th>
+              <th>วิชา</th>
+              <th>ครูเดิม</th>
+              <th>ห้อง/อาคาร</th>
+              <th>ครูสอนแทน</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={`${item.date}-${item.period}-${item.classRoom}-${item.substituteTeacher}`}>
+                <td>{item.date}</td>
+                <td>คาบ {item.period}</td>
+                <td>{item.classRoom}</td>
+                <td>{item.subject}</td>
+                <td>{item.originalTeacher}</td>
+                <td>{item.specialRoom || "-"}</td>
+                <td>{item.substituteTeacher}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <div className="actions">
-        <button className="btn primary" type="button" onClick={handleShare} disabled={busy}>
-          {busy ? "กำลังสร้างรูป…" : "แชร์เป็นรูป"}
+      <div className="share-export-actions">
+        <strong>{title}</strong>
+        <button className="btn primary" type="button" onClick={handleShare} disabled={disabled}>
+          {busy ? "กำลังสร้าง..." : "แชร์"}
         </button>
-        <button className="btn" type="button" onClick={handleDownload} disabled={busy}>
-          ดาวน์โหลดรูป
+        <button className="btn" type="button" onClick={handleDownload} disabled={disabled}>
+          ดาวน์โหลด
         </button>
       </div>
+      {disabledReason ? <p className="muted share-note">{disabledReason}</p> : null}
       {message ? <p className="muted share-note">{message}</p> : null}
     </div>
   );
