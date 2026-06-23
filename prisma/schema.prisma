@@ -111,6 +111,7 @@ model Teacher {
   absences       TeacherAbsence[]
   requestedSwaps SwapRequest[]      @relation("SwapRequester")
   targetSwaps    SwapRequest[]      @relation("SwapTarget")
+  levelMeetings  LevelMeetingTeacher[]
 }
 
 model Room {
@@ -226,6 +227,30 @@ model ActivityPeriod {
   createdAt DateTime @default(now())
 
   @@unique([dayOfWeek, period])
+}
+
+model LevelMeeting {
+  id        String   @id @default(cuid())
+  level     Int      @unique
+  dayOfWeek Int
+  period    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teachers LevelMeetingTeacher[]
+}
+
+model LevelMeetingTeacher {
+  id             String   @id @default(cuid())
+  levelMeetingId String
+  teacherId      String
+  scheduleId     String?
+  createdAt      DateTime @default(now())
+
+  levelMeeting LevelMeeting @relation(fields: [levelMeetingId], references: [id], onDelete: Cascade)
+  teacher      Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([levelMeetingId, teacherId])
 }
 
 model TemporarySchedule {

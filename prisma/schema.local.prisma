@@ -111,6 +111,7 @@ model Teacher {
   absences       TeacherAbsence[]
   requestedSwaps SwapRequest[]      @relation("SwapRequester")
   targetSwaps    SwapRequest[]      @relation("SwapTarget")
+  levelMeetings  LevelMeetingTeacher[]
 }
 
 model Room {
@@ -152,6 +153,40 @@ model TeachingSchedule {
   @@unique([teacherId, dayOfWeek, period, term])
 }
 
+model ActivityPeriod {
+  id        String   @id @default(cuid())
+  dayOfWeek Int
+  period    Int
+  type      String
+  createdAt DateTime @default(now())
+
+  @@unique([dayOfWeek, period])
+}
+
+model LevelMeeting {
+  id        String   @id @default(cuid())
+  level     Int      @unique
+  dayOfWeek Int
+  period    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teachers LevelMeetingTeacher[]
+}
+
+model LevelMeetingTeacher {
+  id             String   @id @default(cuid())
+  levelMeetingId String
+  teacherId      String
+  scheduleId     String?
+  createdAt      DateTime @default(now())
+
+  levelMeeting LevelMeeting @relation(fields: [levelMeetingId], references: [id], onDelete: Cascade)
+  teacher      Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([levelMeetingId, teacherId])
+}
+
 model TeacherAbsence {
   id          String      @id @default(cuid())
   teacherId   String
@@ -176,6 +211,7 @@ model AbsencePeriod {
   absence      TeacherAbsence   @relation(fields: [absenceId], references: [id])
   schedule     TeachingSchedule @relation(fields: [scheduleId], references: [id])
   substitution Substitution?
+  swapRequests SwapRequest[]
 }
 
 model Substitution {
@@ -197,9 +233,11 @@ model Substitution {
 
 model SwapRequest {
   id                 String     @id @default(cuid())
+  absencePeriodId    String?
   requesterTeacherId String
   targetTeacherId    String
   date               DateTime
+  toDate             DateTime?
   fromScheduleId     String
   toScheduleId       String
   status             SwapStatus @default(PENDING)
@@ -210,8 +248,9 @@ model SwapRequest {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  requesterTeacher Teacher @relation("SwapRequester", fields: [requesterTeacherId], references: [id])
-  targetTeacher    Teacher @relation("SwapTarget", fields: [targetTeacherId], references: [id])
+  requesterTeacher Teacher        @relation("SwapRequester", fields: [requesterTeacherId], references: [id])
+  targetTeacher    Teacher        @relation("SwapTarget", fields: [targetTeacherId], references: [id])
+  absencePeriod    AbsencePeriod? @relation(fields: [absencePeriodId], references: [id])
 }
 
 model TemporarySchedule {

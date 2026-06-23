@@ -25,6 +25,7 @@ export async function getSwapCandidates(absencePeriodId: string) {
   if (!absencePeriod) return [];
 
   const source = absencePeriod.schedule;
+  if (!source.subject.requiresSubstitution) return [];
 
   // Activity periods (ชุมนุม / ลูกเสือ) cannot be swapped by anyone.
   const activityPeriods = await prisma.activityPeriod.findMany();
@@ -50,6 +51,7 @@ export async function getSwapCandidates(absencePeriodId: string) {
 
   for (const target of allSchedules) {
     if (target.teacherId === source.teacherId) continue;
+    if (!target.subject.requiresSubstitution) continue;
     // Skip target slots that fall on an activity period.
     if (activitySlots.has(`${target.dayOfWeek}-${target.period}`)) continue;
 

@@ -19,7 +19,9 @@ export async function GET() {
     swapRequests,
     temporarySchedules,
     rolePermissions,
-    activityPeriods
+    activityPeriods,
+    levelMeetings,
+    levelMeetingTeachers
   ] = await Promise.all([
     prisma.schoolTerm.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
@@ -34,7 +36,9 @@ export async function GET() {
     prisma.swapRequest.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.temporarySchedule.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.rolePermission.findMany({ orderBy: [{ role: "asc" }, { permission: "asc" }] }),
-    prisma.activityPeriod.findMany({ orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }] })
+    prisma.activityPeriod.findMany({ orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }] }),
+    prisma.levelMeeting.findMany({ orderBy: { level: "asc" } }),
+    prisma.levelMeetingTeacher.findMany({ orderBy: { createdAt: "asc" } })
   ]);
 
   const backup = {
@@ -58,7 +62,9 @@ export async function GET() {
       swapRequests,
       temporarySchedules,
       rolePermissions,
-      activityPeriods
+      activityPeriods,
+      levelMeetings,
+      levelMeetingTeachers
     }
   };
   const datePart = exportedAt.toISOString().replaceAll(":", "-").replace(/\.\d{3}Z$/, "Z");

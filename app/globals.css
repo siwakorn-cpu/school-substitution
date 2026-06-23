@@ -150,6 +150,10 @@ textarea {
   color: #fff;
 }
 
+.btn.primary .en-caption {
+  color: rgba(255, 255, 255, 0.82);
+}
+
 .btn.danger {
   border-color: #fecdca;
   color: var(--danger);
@@ -293,6 +297,13 @@ a.stat:hover {
   gap: 6px;
   max-width: 360px;
   margin-bottom: 14px;
+}
+
+.small-label {
+  margin: 0 0 2px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 label {
@@ -562,7 +573,7 @@ table {
 .activity-add-form {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: flex-end;
   gap: 10px;
   margin-bottom: 14px;
 }
@@ -573,6 +584,51 @@ table {
 
 .activity-add-form .btn {
   min-height: 42px;
+}
+
+.level-meeting-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.level-meeting-form {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+.level-meeting-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.level-meeting-head h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.level-meeting-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, 0.55fr);
+  gap: 8px;
+}
+
+.level-teacher-grid {
+  max-height: 180px;
+  margin-top: 6px;
+}
+
+.level-meeting-form .btn {
+  min-height: 36px;
+  padding: 7px 10px;
 }
 
 .empty-schedule-add {
@@ -1041,6 +1097,27 @@ th {
 
 .badge.danger {
   background: #f4dcd8;
+  color: var(--danger);
+}
+
+.notice {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.notice.success {
+  border-color: rgba(63, 125, 99, 0.28);
+  background: #eef7f2;
+  color: var(--success);
+}
+
+.notice.danger {
+  border-color: #fecdca;
+  background: #fffbfa;
   color: var(--danger);
 }
 

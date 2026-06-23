@@ -24,8 +24,12 @@ export async function POST(request: Request) {
     let rooms = { count: 0 };
     let subjects = { count: 0 };
     let departments = { count: 0 };
+    let levelMeetingTeachers = { count: 0 };
+    let levelMeetings = { count: 0 };
 
     if (mode === "schedules_only" || mode === "usage_and_schedules" || mode === "master_data_too") {
+      levelMeetingTeachers = await tx.levelMeetingTeacher.deleteMany();
+      levelMeetings = await tx.levelMeeting.deleteMany();
       teachingSchedules = await tx.teachingSchedule.deleteMany();
       schoolTerms = await tx.schoolTerm.deleteMany();
     }
@@ -51,7 +55,9 @@ export async function POST(request: Request) {
       teachers: teachers.count,
       rooms: rooms.count,
       subjects: subjects.count,
-      departments: departments.count
+      departments: departments.count,
+      levelMeetingTeachers: levelMeetingTeachers.count,
+      levelMeetings: levelMeetings.count
     };
   });
 
