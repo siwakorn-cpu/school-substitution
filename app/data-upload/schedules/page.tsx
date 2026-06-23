@@ -60,6 +60,10 @@ export default async function ScheduleDataPage({
   const scheduleByDayPeriod = new Map(
     teacherSchedules.map((schedule) => [`${schedule.dayOfWeek}-${schedule.period}`, schedule])
   );
+  const activityPeriods = await prisma.activityPeriod.findMany();
+  const activityByDayPeriod = new Map(
+    activityPeriods.map((activity) => [`${activity.dayOfWeek}-${activity.period}`, activity])
+  );
 
   return (
     <AppShell user={user}>
@@ -193,10 +197,23 @@ export default async function ScheduleDataPage({
                       <th>{thaiDays[dayIndex]}</th>
                       {periods.map((period) => {
                         const schedule = scheduleByDayPeriod.get(`${dayIndex}-${period}`);
+                        const activity = activityByDayPeriod.get(`${dayIndex}-${period}`);
+                        const isClub = activity?.type === "CLUB";
+                        const showScoutLabel = activity?.type === "SCOUT" && !schedule;
 
                         return (
                           <td key={period}>
-                            {schedule ? (
+                            {isClub ? (
+                              <div className="schedule-cell-activity">
+                                <strong>ชุมนุม</strong>
+                                <span>แลกคาบไม่ได้</span>
+                              </div>
+                            ) : showScoutLabel ? (
+                              <div className="schedule-cell-activity">
+                                <strong>ลูกเสือ</strong>
+                                <span>เนตรนารี ยุวกาชาด</span>
+                              </div>
+                            ) : schedule ? (
                               <a
                                 className="schedule-cell-link"
                                 href={`/data-upload/schedules?${new URLSearchParams({
