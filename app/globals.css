@@ -626,6 +626,20 @@ table {
   margin-top: 6px;
 }
 
+.level-teacher-search {
+  margin-top: 8px;
+}
+
+.level-teacher-search input {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.level-search-count {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
 .level-meeting-form .btn {
   min-height: 36px;
   padding: 7px 10px;
