@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 
-type ResetMode = "usage_only" | "schedules_too" | "master_data_too";
+type ResetMode = "usage_only" | "schedules_only" | "usage_and_schedules" | "master_data_too";
 type Step = "closed" | "warning" | "confirm";
 
 const modeLabels: Record<ResetMode, string> = {
   usage_only: "ล้างเฉพาะข้อมูลการใช้งาน",
-  schedules_too: "ล้างข้อมูลการใช้งานและตารางสอน",
+  schedules_only: "ล้างตารางสอน",
+  usage_and_schedules: "ล้างข้อมูลการใช้งานและตารางสอน",
   master_data_too: "เริ่มใหม่ทั้งหมดแต่เก็บบัญชีผู้ดูแลระบบ"
 };
 
@@ -113,7 +114,17 @@ export function ResetSystemFlow() {
             <span className="en-caption">Clear absences, substitutions, swaps, and temporary schedules</span>
           </label>
           <label>
-            <input type="radio" name="resetMode" checked={mode === "schedules_too"} onChange={() => setMode("schedules_too")} />
+            <input type="radio" name="resetMode" checked={mode === "schedules_only"} onChange={() => setMode("schedules_only")} />
+            ล้างตารางสอน
+            <span className="en-caption">Clear teaching schedules and schedule-linked records only</span>
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="resetMode"
+              checked={mode === "usage_and_schedules"}
+              onChange={() => setMode("usage_and_schedules")}
+            />
             ล้างข้อมูลการใช้งานและตารางสอน
             <span className="en-caption">Also clear teaching schedules and saved terms</span>
           </label>

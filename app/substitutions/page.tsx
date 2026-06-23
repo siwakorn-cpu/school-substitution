@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { canManageSubstitution } from "@/lib/rbac";
 import { formatThaiDate, parseDateInput, toDateInputValue } from "@/lib/date";
 import { recommendSubstitutes } from "@/lib/recommendSubstitutes";
+import { getDepartmentScopeId, roleUsesDepartmentScope } from "@/lib/departmentScope";
 
 export default async function SubstitutionsPage({
   searchParams
@@ -20,6 +21,8 @@ export default async function SubstitutionsPage({
   const user = await requireUser();
   const params = await searchParams;
   const canAssignSubstitution = await canManageSubstitution(user);
+  const departmentScopeId = await getDepartmentScopeId(user);
+  const usesDepartmentScope = roleUsesDepartmentScope(user);
   if (!canAssignSubstitution && !user.teacherId) {
     return (
       <AppShell user={user}>
@@ -31,8 +34,13 @@ export default async function SubstitutionsPage({
   const isEditing = params.edit === "1";
   const sortDate = params.sortDate === "asc" ? "asc" : "desc";
   const dateScope = params.dateScope === "today" ? "today" : "all";
-  const departments = await prisma.department.findMany({ orderBy: { name: "asc" } });
-  const selectedDepartmentId = departments.some((department) => department.id === params.departmentId)
+  const departments = await prisma.department.findMany({
+    where: usesDepartmentScope ? { id: departmentScopeId ?? "__none__" } : {},
+    orderBy: { name: "asc" }
+  });
+  const selectedDepartmentId = usesDepartmentScope
+    ? departmentScopeId ?? "__none__"
+    : departments.some((department) => department.id === params.departmentId)
     ? params.departmentId ?? "all"
     : "all";
   const today = parseDateInput(toDateInputValue());
@@ -66,9 +74,13 @@ export default async function SubstitutionsPage({
     take: 50
   });
 
+  const selectedWhere: Prisma.AbsencePeriodWhereInput = {
+    id: absencePeriodId || "__none__",
+    ...(usesDepartmentScope ? { absence: { teacher: { departmentId: departmentScopeId ?? "__none__" } } } : {})
+  };
   const selected = absencePeriodId
-    ? await prisma.absencePeriod.findUnique({
-        where: { id: absencePeriodId },
+    ? await prisma.absencePeriod.findFirst({
+        where: selectedWhere,
         include: {
           absence: { include: { teacher: { include: { department: true } } } },
           schedule: { include: { classRoom: true, subject: true, specialRoom: true } },
@@ -82,7 +94,10 @@ export default async function SubstitutionsPage({
         include: { department: true }
       })
     : null;
-  const recommendations = selected && canAssignSubstitution ? await recommendSubstitutes(selected.id) : [];
+  const recommendations =
+    selected && canAssignSubstitution
+      ? await recommendSubstitutes(selected.id, { departmentId: usesDepartmentScope ? departmentScopeId : null })
+      : [];
   const listQuery = new URLSearchParams({
     sortDate,
     dateScope,
@@ -116,8 +131,8 @@ export default async function SubstitutionsPage({
             </label>
             <label>
               กลุ่มสาระ
-              <select name="departmentId" defaultValue={selectedDepartmentId}>
-                <option value="all">ทุกกลุ่มสาระ</option>
+              <select name="departmentId" defaultValue={selectedDepartmentId} disabled={usesDepartmentScope}>
+                {!usesDepartmentScope ? <option value="all">ทุกกลุ่มสาระ</option> : null}
                 {departments.map((department) => (
                   <option key={department.id} value={department.id}>
                     {department.name}

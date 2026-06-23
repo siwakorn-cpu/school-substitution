@@ -11,7 +11,10 @@ export type SubstituteRecommendation = {
   warnings: string[];
 };
 
-export async function recommendSubstitutes(absencePeriodId: string): Promise<SubstituteRecommendation[]> {
+export async function recommendSubstitutes(
+  absencePeriodId: string,
+  options: { departmentId?: string | null } = {}
+): Promise<SubstituteRecommendation[]> {
   const absencePeriod = await prisma.absencePeriod.findUnique({
     where: { id: absencePeriodId },
     include: {
@@ -36,7 +39,8 @@ export async function recommendSubstitutes(absencePeriodId: string): Promise<Sub
   const teachers = await prisma.teacher.findMany({
     where: {
       status: "ACTIVE",
-      id: { not: absence.teacherId }
+      id: { not: absence.teacherId },
+      ...(options.departmentId ? { departmentId: options.departmentId } : {})
     },
     include: { department: true }
   });
@@ -125,7 +129,11 @@ export async function recommendSubstitutes(absencePeriodId: string): Promise<Sub
   return recommendations.sort((a, b) => b.score - a.score || a.substitutionCount - b.substitutionCount);
 }
 
-export async function validateSubstitute(absencePeriodId: string, substituteTeacherId: string) {
-  const options = await recommendSubstitutes(absencePeriodId);
-  return options.some((item) => item.teacherId === substituteTeacherId);
+export async function validateSubstitute(
+  absencePeriodId: string,
+  substituteTeacherId: string,
+  options: { departmentId?: string | null } = {}
+) {
+  const optionsList = await recommendSubstitutes(absencePeriodId, options);
+  return optionsList.some((item) => item.teacherId === substituteTeacherId);
 }

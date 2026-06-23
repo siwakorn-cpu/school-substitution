@@ -111,6 +111,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
 }
 
@@ -136,6 +137,24 @@ textarea {
 .btn.danger {
   border-color: #fecdca;
   color: var(--danger);
+}
+
+.login-status {
+  display: grid;
+  gap: 0;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.login-status strong {
+  color: var(--text);
+  font-size: 13px;
 }
 
 .main {
@@ -218,6 +237,43 @@ label {
   gap: 6px;
   color: #344054;
   font-size: 14px;
+}
+
+.checkbox-grid {
+  display: grid;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  gap: 6px;
+}
+
+.compact-check,
+.inline-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.compact-check input,
+.inline-check input {
+  width: auto;
+  min-height: auto;
+}
+
+.compact-check small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.compact-table th,
+.compact-table td {
+  padding: 8px 10px;
+  font-size: 13px;
 }
 
 input,
@@ -753,11 +809,22 @@ th {
   display: grid;
   gap: 8px;
   color: inherit;
+  align-content: start;
 }
 
 .settings-card:hover {
   border-color: var(--primary);
   box-shadow: 0 12px 32px rgba(16, 24, 40, 0.08);
+}
+
+.settings-card h2,
+.settings-card p {
+  display: grid;
+  gap: 3px;
+}
+
+.settings-card .en-caption {
+  white-space: normal;
 }
 
 .btn:disabled,

@@ -3,19 +3,39 @@ import { requireAdmin } from "@/lib/auth";
 
 const settingsLinks = [
   {
+    href: "/users",
+    title: "จัดการผู้ใช้",
+    titleEn: "Manage users",
+    description: "อนุมัติบัญชีผู้ใช้ ผูกบัญชีกับครู และกำหนดบทบาทผู้ใช้งาน",
+    descriptionEn: "Approve user accounts, link teachers, and assign user roles"
+  },
+  {
     href: "/settings/permissions",
     title: "ปรับสิทธิ์",
-    description: "กำหนดสิทธิ์ของครู หัวหน้างานบุคคล หัวหน้ากลุ่มสาระ และตัวแทนกลุ่มสาระ"
+    titleEn: "Permissions",
+    description: "กำหนดสิทธิ์ของครู หัวหน้างานบุคคล หัวหน้ากลุ่มสาระ และตัวแทนกลุ่มสาระ",
+    descriptionEn: "Configure permissions for teachers, personnel heads, department heads, and department representatives"
   },
   {
     href: "/settings/terms/start-new",
     title: "เริ่มภาคเรียนใหม่",
-    description: "สำรองข้อมูลก่อนสร้างภาคเรียนใหม่ และเลือกว่าจะคัดลอกตารางสอนหรือเริ่มจากตารางว่าง"
+    titleEn: "Start new term",
+    description: "สำรองข้อมูลก่อนสร้างภาคเรียนใหม่ และเลือกว่าจะคัดลอกตารางสอนหรือเริ่มจากตารางว่าง",
+    descriptionEn: "Back up data before creating a new term, then choose whether to copy schedules or start blank"
   },
   {
     href: "/settings/reset",
     title: "เริ่มต้นระบบใหม่",
-    description: "รีเซ็ตข้อมูลการใช้งานหลังสำรองข้อมูลและยืนยันด้วย RESET"
+    titleEn: "Restart system use",
+    description: "รีเซ็ตข้อมูลการใช้งานหลังสำรองข้อมูลและยืนยันด้วย RESET",
+    descriptionEn: "Reset system data after backup and RESET confirmation"
+  },
+  {
+    href: "/settings/subjects",
+    title: "ตั้งค่ารายวิชา",
+    titleEn: "Subject settings",
+    description: "กำหนดรายวิชาที่ต้องจัดสอนแทน หรือไม่ต้องสร้างรายการสอนแทน",
+    descriptionEn: "Choose which subjects require substitution records"
   }
 ];
 
@@ -33,9 +53,15 @@ export default async function SettingsPage() {
 
       <section className="grid">
         {settingsLinks.map((item) => (
-          <a className="card span-4 settings-card" href={item.href} key={item.href}>
-            <h2>{item.title}</h2>
-            <p className="muted">{item.description}</p>
+          <a className="card span-4 settings-card" href={item.href} key={item.href} data-bilingual-processed="true">
+            <h2>
+              <span>{item.title}</span>
+              <span className="en-caption">{item.titleEn}</span>
+            </h2>
+            <p className="muted">
+              <span>{item.description}</span>
+              <span className="en-caption">{item.descriptionEn}</span>
+            </p>
           </a>
         ))}
       </section>

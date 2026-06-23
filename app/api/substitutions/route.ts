@@ -4,6 +4,7 @@ import { canManageSubstitution } from "@/lib/rbac";
 import { validateSubstitute } from "@/lib/recommendSubstitutes";
 import { redirectTo } from "@/lib/redirect";
 import { parseDateInput, toDateInputValue } from "@/lib/date";
+import { getDepartmentScopeId, roleUsesDepartmentScope } from "@/lib/departmentScope";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -13,18 +14,29 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const absencePeriodId = String(formData.get("absencePeriodId") ?? "");
   const substituteTeacherId = String(formData.get("substituteTeacherId") ?? "");
+  const usesDepartmentScope = roleUsesDepartmentScope(user);
+  const departmentScopeId = await getDepartmentScopeId(user);
 
-  const valid = await validateSubstitute(absencePeriodId, substituteTeacherId);
+  const valid = await validateSubstitute(absencePeriodId, substituteTeacherId, {
+    departmentId: usesDepartmentScope ? departmentScopeId : null
+  });
   if (!valid) {
     return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
   }
 
   const absencePeriod = await prisma.absencePeriod.findUnique({
     where: { id: absencePeriodId },
-    include: { absence: true, schedule: true }
+    include: {
+      absence: { include: { teacher: true } },
+      schedule: true
+    }
   });
 
   if (!absencePeriod) {
+    return redirectTo(request, "/substitutions");
+  }
+
+  if (usesDepartmentScope && absencePeriod.absence.teacher.departmentId !== departmentScopeId) {
     return redirectTo(request, "/substitutions");
   }
 

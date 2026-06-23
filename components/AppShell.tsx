@@ -11,7 +11,6 @@ const links = [
   { href: "/swaps", label: "แลกคาบ", permissions: ["manage_swaps"] },
   { href: "/reports", label: "สถิติ", permissions: ["view_reports"] },
   { href: "/data-upload", label: "อัพโหลดข้อมูล", permissions: ["manage_teacher_data", "import_schedules"] },
-  { href: "/users", label: "จัดการผู้ใช้", adminOnly: true },
   { href: "/settings", label: "ตั้งค่าระบบ", adminOnly: true }
 ] satisfies {
   href: string;
@@ -43,6 +42,10 @@ export async function AppShell({ user, children }: { user: SessionUser; children
                 {link.label}
               </Link>
             ))}
+          <div className="login-status" aria-label="สถานะการเข้าสู่ระบบ">
+            <span>เข้าสู่ระบบ</span>
+            <strong>{user.username}</strong>
+          </div>
           <form action="/api/auth/logout" method="post">
             <button type="submit" title="ออกจากระบบ">
               <LogOut size={16} aria-hidden="true" /> ออก

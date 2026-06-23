@@ -28,7 +28,7 @@ export default async function AbsencesPage({
   const date = parseDateInput(selectedDate);
   const dayOfWeek = dayOfWeekFromDate(date);
 
-  const [teachers, schedules, absences] = await Promise.all([
+  const [teachers, schedules, absences, leaveRequests] = await Promise.all([
     prisma.teacher.findMany({
       where: canManageAllAbsences
         ? { status: "ACTIVE" }
@@ -48,6 +48,15 @@ export default async function AbsencesPage({
       orderBy: { createdAt: "desc" },
       take: 10,
       include: { teacher: true, periods: { include: { schedule: { include: { subject: true } } } } }
+    }),
+    prisma.teacherAbsence.findMany({
+      where: {
+        type: { in: ["PERSONAL", "OFFICIAL"] },
+        ...(canManageAllAbsences ? {} : { teacherId: user.teacherId ?? "" })
+      },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      take: 12,
+      include: { teacher: { include: { department: true } }, periods: true }
     })
   ]);
 
@@ -85,6 +94,44 @@ export default async function AbsencesPage({
             </button>
           </form>
         </div>
+
+        {canManageAllAbsences ? (
+          <div className="card span-4">
+            <h2>บันทึกลาป่วย/ลากิจหลายคน</h2>
+            <form className="form" action="/api/absences" method="post">
+              <input type="hidden" name="intent" value="bulk" />
+              <label>
+                วันที่
+                <input name="date" type="date" defaultValue={selectedDate} />
+              </label>
+              <label>
+                ประเภท
+                <select name="type" defaultValue="LEAVE">
+                  <option value="LEAVE">ลาป่วย</option>
+                  <option value="PERSONAL">ลากิจ</option>
+                </select>
+              </label>
+              <label>
+                หมายเหตุ
+                <input name="note" placeholder="ถ้ามี" />
+              </label>
+              <div className="checkbox-grid" aria-label="เลือกครู">
+                {teachers.map((teacher) => (
+                  <label className="compact-check" key={teacher.id}>
+                    <input type="checkbox" name="teacherIds" value={teacher.id} />
+                    <span>
+                      {teacher.code} - {teacher.name}
+                      <small>{teacher.department.name}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <button className="btn primary" type="submit">
+                บันทึกหลายคน
+              </button>
+            </form>
+          </div>
+        ) : null}
 
         <div className="card span-8">
           <h2>คาบสอนวันที่ {formatThaiDate(date)} ({thaiDays[dayOfWeek]})</h2>
@@ -135,11 +182,19 @@ export default async function AbsencesPage({
                     {schedules.map((schedule) => (
                       <tr key={schedule.id}>
                         <td>
-                          <input type="checkbox" name="scheduleIds" value={schedule.id} />
+                          <input
+                            type="checkbox"
+                            name="scheduleIds"
+                            value={schedule.id}
+                            disabled={!schedule.subject.requiresSubstitution}
+                          />
                         </td>
                         <td>{schedule.period}</td>
                         <td>{schedule.classRoom.name}</td>
-                        <td>{schedule.subject.name}</td>
+                        <td>
+                          {schedule.subject.name}
+                          {!schedule.subject.requiresSubstitution ? <span className="badge warning">ไม่ต้องจัดสอนแทน</span> : null}
+                        </td>
                         <td>{schedule.specialRoom?.name ?? "-"}</td>
                       </tr>
                     ))}
@@ -190,6 +245,36 @@ export default async function AbsencesPage({
                         ))}
                       </div>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>การยื่นลากิจหรือไปราชการ</h2>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>วันที่</th>
+                  <th>ครู</th>
+                  <th>กลุ่มสาระ</th>
+                  <th>ประเภท</th>
+                  <th>คาบที่เกี่ยวข้อง</th>
+                  <th>หมายเหตุ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaveRequests.map((request) => (
+                  <tr key={request.id}>
+                    <td>{formatThaiDate(request.date)}</td>
+                    <td>{request.teacher.name}</td>
+                    <td>{request.teacher.department.name}</td>
+                    <td>{absenceTypeLabel(request.type)}</td>
+                    <td>{request.periods.map((period) => period.period).join(", ") || "-"}</td>
+                    <td>{request.note || "-"}</td>
                   </tr>
                 ))}
               </tbody>

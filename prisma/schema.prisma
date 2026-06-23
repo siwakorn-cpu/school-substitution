@@ -124,9 +124,10 @@ model Room {
 }
 
 model Subject {
-  id   String  @id @default(cuid())
-  code String?
-  name String  @unique
+  id                   String  @id @default(cuid())
+  code                 String?
+  name                 String  @unique
+  requiresSubstitution Boolean @default(true)
 
   schedules TeachingSchedule[]
 }
