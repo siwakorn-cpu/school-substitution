@@ -361,13 +361,14 @@ export default async function ScheduleDataPage({
                 {teacherSchedules.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="muted">
-                      ยังไม่มีตารางสอนของ {selectedScheduleTeacher?.name ?? "ครูที่เลือก"} ในภาคเรียนนี้
+                      ยังไม่มีตารางสอนของ{" "}
+                      <span className="no-glossary">{selectedScheduleTeacher?.name ?? "ครูที่เลือก"}</span> ในภาคเรียนนี้
                     </td>
                   </tr>
                 ) : null}
                 {teacherSchedules.map((schedule) => (
                   <tr id={`schedule-${schedule.id}`} key={schedule.id}>
-                    <td>{selectedScheduleTeacher?.name}</td>
+                    <td className="no-glossary">{selectedScheduleTeacher?.name}</td>
                     <td>{thaiDays[schedule.dayOfWeek]}</td>
                     <td>{schedule.period}</td>
                     <td>{schedule.classRoom.name}</td>

@@ -36,6 +36,10 @@ export async function POST(request: Request) {
     return redirectTo(request, "/substitutions");
   }
 
+  if (absencePeriod.absence.type !== "LEAVE") {
+    return redirectTo(request, "/substitutions");
+  }
+
   if (usesDepartmentScope && absencePeriod.absence.teacher.departmentId !== departmentScopeId) {
     return redirectTo(request, "/substitutions");
   }

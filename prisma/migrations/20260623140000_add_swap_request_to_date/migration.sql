@@ -1,0 +1,1 @@
+ALTER TABLE "SwapRequest" ADD COLUMN "toDate" TIMESTAMP(3);

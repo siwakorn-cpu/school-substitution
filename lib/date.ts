@@ -18,3 +18,10 @@ export function toDateInputValue(date = new Date()) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 10);
 }
+
+export function nextDateForDayOfWeek(fromDate: Date, targetDayOfWeek: number) {
+  const date = new Date(fromDate);
+  const diff = (targetDayOfWeek - date.getDay() + 7) % 7;
+  date.setDate(date.getDate() + diff);
+  return date;
+}

@@ -203,13 +203,13 @@ export default async function ReportsPage({
                     return (
                       <tr key={item.id}>
                         <td>{formatThaiDate(item.absencePeriod.absence.date)}</td>
-                        <td>{item.absencePeriod.absence.teacher.name}</td>
+                        <td className="no-glossary">{item.absencePeriod.absence.teacher.name}</td>
                         <td>{item.period}</td>
                         <td>{schedule.subject.code || "-"}</td>
                         <td>{schedule.subject.name}</td>
                         <td>{schedule.classRoom.name}</td>
                         <td>{schedule.specialRoom?.name ?? schedule.classRoom.name}</td>
-                        <td>
+                        <td className="no-glossary">
                           {substituteTeacher
                             ? `${substituteTeacher.code} - ${substituteTeacher.name}`
                             : "-"}
@@ -238,7 +238,7 @@ export default async function ReportsPage({
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.id}>
-                    <td>
+                    <td className="no-glossary">
                       {row.code} - {row.name}
                     </td>
                     <td>{row.department}</td>

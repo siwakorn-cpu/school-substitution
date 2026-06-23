@@ -43,8 +43,11 @@ export async function AppShell({ user, children }: { user: SessionUser; children
               </Link>
             ))}
           <div className="login-status" aria-label="สถานะการเข้าสู่ระบบ">
-            <span>เข้าสู่ระบบ</span>
-            <strong>{user.username}</strong>
+            <span className="login-status-on">
+              <span className="login-status-dot" aria-hidden="true" />
+              ON
+            </span>
+            <strong className="no-glossary">{user.username}</strong>
           </div>
           <form action="/api/auth/logout" method="post">
             <button type="submit" title="ออกจากระบบ">

@@ -6,6 +6,7 @@ import { canManageSubstitution } from "@/lib/rbac";
 import { formatThaiDate, parseDateInput, toDateInputValue } from "@/lib/date";
 import { recommendSubstitutes } from "@/lib/recommendSubstitutes";
 import { getDepartmentScopeId, roleUsesDepartmentScope } from "@/lib/departmentScope";
+import { ShareSubstitutionImage } from "@/components/ShareSubstitutionImage";
 
 export default async function SubstitutionsPage({
   searchParams
@@ -45,7 +46,7 @@ export default async function SubstitutionsPage({
     : "all";
   const today = parseDateInput(toDateInputValue());
   const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-  const absenceWhere: Prisma.TeacherAbsenceWhereInput = {};
+  const absenceWhere: Prisma.TeacherAbsenceWhereInput = { type: "LEAVE" };
 
   if (dateScope === "today") {
     absenceWhere.date = { gte: today, lt: tomorrow };
@@ -76,7 +77,10 @@ export default async function SubstitutionsPage({
 
   const selectedWhere: Prisma.AbsencePeriodWhereInput = {
     id: absencePeriodId || "__none__",
-    ...(usesDepartmentScope ? { absence: { teacher: { departmentId: departmentScopeId ?? "__none__" } } } : {})
+    absence: {
+      type: "LEAVE",
+      ...(usesDepartmentScope ? { teacher: { departmentId: departmentScopeId ?? "__none__" } } : {})
+    }
   };
   const selected = absencePeriodId
     ? await prisma.absencePeriod.findFirst({
@@ -174,7 +178,7 @@ export default async function SubstitutionsPage({
                         {formatThaiDate(period.absence.date)}
                       </a>
                     </td>
-                    <td>{period.absence.teacher.name}</td>
+                    <td className="no-glossary">{period.absence.teacher.name}</td>
                     <td>{period.period}</td>
                     <td>
                       <span className={`badge ${period.status === "DONE" ? "success" : "warning"}`}>
@@ -199,7 +203,8 @@ export default async function SubstitutionsPage({
                 {selected.schedule.subject.name}
               </p>
               <p className="muted">
-                ครูเดิม: {selected.absence.teacher.name} ({selected.absence.teacher.department.name})
+                ครูเดิม: <span className="no-glossary">{selected.absence.teacher.name}</span> (
+                {selected.absence.teacher.department.name})
                 {selected.schedule.specialRoom ? ` · ห้อง/อาคาร: ${selected.schedule.specialRoom.name}` : ""}
               </p>
 
@@ -210,9 +215,13 @@ export default async function SubstitutionsPage({
                       <strong>จัดครูสอนแทนแล้ว</strong>
                       <p className="muted">
                         ครูสอนแทนปัจจุบัน:{" "}
-                        {currentSubstitute
-                          ? `${currentSubstitute.code} - ${currentSubstitute.name} (${currentSubstitute.department.name})`
-                          : "ไม่พบข้อมูลครู"}
+                        {currentSubstitute ? (
+                          <span className="no-glossary">
+                            {currentSubstitute.code} - {currentSubstitute.name} ({currentSubstitute.department.name})
+                          </span>
+                        ) : (
+                          "ไม่พบข้อมูลครู"
+                        )}
                       </p>
                     </div>
                     {canEditSelectedSubstitution ? (
@@ -230,6 +239,18 @@ export default async function SubstitutionsPage({
                       <span className="badge warning">ย้อนหลังแก้ไขได้เฉพาะผู้ดูแลระบบ</span>
                     ) : null}
                   </div>
+                  {currentSubstitute ? (
+                    <ShareSubstitutionImage
+                      date={formatThaiDate(selected.absence.date)}
+                      period={selected.period}
+                      classRoom={selected.schedule.classRoom.name}
+                      subject={selected.schedule.subject.name}
+                      originalTeacher={`${selected.absence.teacher.name} (${selected.absence.teacher.department.name})`}
+                      substituteTeacher={`${currentSubstitute.code} - ${currentSubstitute.name} (${currentSubstitute.department.name})`}
+                      specialRoom={selected.schedule.specialRoom?.name ?? null}
+                      note={selected.substitution.note}
+                    />
+                  ) : null}
                 </div>
               ) : !canAssignSubstitution ? (
                 <p className="muted">บัญชีครูดูรายการของตนเองได้ แต่จัดครูแทนไม่ได้</p>
@@ -254,7 +275,7 @@ export default async function SubstitutionsPage({
                   {recommendations.map((item) => (
                     <div className="recommendation-item" key={item.teacherId}>
                       <div className="recommendation-main">
-                        <strong>
+                        <strong className="no-glossary">
                           {item.teacherCode} - {item.teacherName}
                         </strong>
                         <div className="actions">

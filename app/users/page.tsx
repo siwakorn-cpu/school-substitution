@@ -118,7 +118,7 @@ export default async function UsersPage({
                   <tr key={item.id}>
                     <td>{item.username}</td>
                     <td>{roleLabel(item.role)}</td>
-                    <td>
+                    <td className="no-glossary">
                       {item.teacher
                         ? `${item.teacher.code} - ${item.teacher.name} (${item.teacher.department.name})`
                         : "-"}

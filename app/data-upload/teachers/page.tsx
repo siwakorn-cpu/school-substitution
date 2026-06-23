@@ -163,7 +163,7 @@ export default async function TeacherDataPage({
                 {teachers.map((teacher) => (
                   <tr key={teacher.id}>
                     <td>{teacher.code}</td>
-                    <td>{teacher.name}</td>
+                    <td className="no-glossary">{teacher.name}</td>
                     <td>{teacher.department.name}</td>
                     <td>
                       <span className={`badge ${teacher.status === "ACTIVE" ? "success" : "danger"}`}>

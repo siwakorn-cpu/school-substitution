@@ -19,6 +19,44 @@ export async function POST(request: Request) {
   const requestedType = normalizeAbsenceType(formData.get("type"));
   const note = String(formData.get("note") ?? "").trim();
 
+  if (intent === "delete" || intent === "update") {
+    const absenceId = String(formData.get("absenceId") ?? "");
+    const absence = await prisma.teacherAbsence.findUnique({
+      where: { id: absenceId },
+      include: { periods: { select: { id: true } } }
+    });
+    if (!absence) return redirectTo(request, "/absences");
+    if (!canManageAllAbsences && absence.teacherId !== user.teacherId) {
+      return redirectTo(request, "/absences");
+    }
+    const periodIds = absence.periods.map((period) => period.id);
+
+    if (intent === "delete") {
+      await purgePeriodProcessing(periodIds);
+      await prisma.$transaction([
+        prisma.absencePeriod.deleteMany({ where: { absenceId } }),
+        prisma.teacherAbsence.delete({ where: { id: absenceId } })
+      ]);
+      return redirectTo(request, "/absences");
+    }
+
+    // intent === "update": edit type + note. Teachers cannot set sick leave.
+    const newType = !canManageAllAbsences && requestedType === "LEAVE" ? "OFFICIAL" : requestedType;
+    if (absence.type !== newType) {
+      // changing type re-routes the record, so clear any prior substitution/swap processing
+      await purgePeriodProcessing(periodIds);
+      await prisma.absencePeriod.updateMany({
+        where: { absenceId },
+        data: { actionType: "NONE", status: "PENDING" }
+      });
+    }
+    await prisma.teacherAbsence.update({
+      where: { id: absenceId },
+      data: { type: newType, note }
+    });
+    return redirectTo(request, "/absences");
+  }
+
   if (intent === "bulk") {
     if (!canManageAllAbsences) return redirectTo(request, "/absences");
     const teacherIds = formData.getAll("teacherIds").map(String).filter(Boolean);
@@ -106,4 +144,22 @@ function normalizeAbsenceType(value: FormDataEntryValue | null) {
   const type = String(value ?? "LEAVE");
   if (type === "OFFICIAL" || type === "PERSONAL" || type === "LEAVE") return type;
   return "LEAVE";
+}
+
+// Remove substitutions, swap requests, and temporary schedules tied to the given
+// absence periods so the records can be safely deleted or re-processed.
+async function purgePeriodProcessing(periodIds: string[]) {
+  if (periodIds.length === 0) return;
+  const swaps = await prisma.swapRequest.findMany({
+    where: { absencePeriodId: { in: periodIds } },
+    select: { id: true }
+  });
+  await prisma.$transaction([
+    prisma.temporarySchedule.deleteMany({ where: { sourceType: "SUBSTITUTE", sourceId: { in: periodIds } } }),
+    prisma.temporarySchedule.deleteMany({
+      where: { sourceType: "SWAP", sourceId: { in: swaps.map((swap) => swap.id) } }
+    }),
+    prisma.substitution.deleteMany({ where: { absencePeriodId: { in: periodIds } } }),
+    prisma.swapRequest.deleteMany({ where: { absencePeriodId: { in: periodIds } } })
+  ]);
 }

@@ -6,7 +6,23 @@
       "Bash(pip3 install *)",
       "Bash(open /Users/siwbook/Desktop/timetable/)",
       "Read(//Users/siwbook/Desktop/timetable/**)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(grep -rn \"teacherName\\\\|{t\\\\.name}\\\\|{teacher\\\\.name}\\\\|teacher\\\\.code.*teacher\\\\.name\\\\|\\\\${.*\\\\.name}\" /Users/siwbook/Documents/ClaudeCode/app --include=\"*.tsx\")",
+      "Bash(npx tsc *)",
+      "Bash(lsof -ti:3000)",
+      "Bash(xargs -r kill)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(brew list *)",
+      "Bash(brew --version)",
+      "Bash(npm run *)",
+      "Bash(cp /Users/siwbook/Documents/ClaudeCode/prisma/schema.prisma /tmp/schema.prisma.postgres.bak *)",
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx prisma db push --skip-generate)",
+      "Bash(npx prisma *)",
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx tsx prisma/seed.ts)",
+      "Bash(DATABASE_URL=file:./dev.db node -e ' *)",
+      "mcp__Claude_in_Chrome__navigate",
+      "Bash(grep -nE '#[0-9a-fA-F]{3,8}|rgba?\\\\\\(' app/globals.css)",
+      "Bash(npm install *)"
     ]
   }
 }

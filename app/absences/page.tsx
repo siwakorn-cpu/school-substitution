@@ -120,7 +120,9 @@ export default async function AbsencesPage({
                   <label className="compact-check" key={teacher.id}>
                     <input type="checkbox" name="teacherIds" value={teacher.id} />
                     <span>
-                      {teacher.code} - {teacher.name}
+                      <span className="no-glossary">
+                        {teacher.code} - {teacher.name}
+                      </span>
                       <small>{teacher.department.name}</small>
                     </span>
                   </label>
@@ -219,13 +221,14 @@ export default async function AbsencesPage({
                   <th>ประเภท</th>
                   <th>คาบ</th>
                   <th>จัดการ</th>
+                  <th>แก้ไข/ยกเลิก</th>
                 </tr>
               </thead>
               <tbody>
                 {absences.map((absence) => (
                   <tr key={absence.id}>
                     <td>{formatThaiDate(absence.date)}</td>
-                    <td>{absence.teacher.name}</td>
+                    <td className="no-glossary">{absence.teacher.name}</td>
                     <td>{absenceTypeLabel(absence.type)}</td>
                     <td>{absence.periods.map((period) => period.period).join(", ")}</td>
                     <td>
@@ -243,6 +246,39 @@ export default async function AbsencesPage({
                             คาบ {period.period}
                           </Link>
                         ))}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="actions">
+                        <details className="absence-edit-toggle">
+                          <summary>แก้ไข</summary>
+                          <form className="absence-edit-form" action="/api/absences" method="post">
+                            <input type="hidden" name="intent" value="update" />
+                            <input type="hidden" name="absenceId" value={absence.id} />
+                            <label>
+                              ประเภท
+                              <select name="type" defaultValue={absence.type}>
+                                {canManageAllAbsences ? <option value="LEAVE">ลาป่วย</option> : null}
+                                <option value="PERSONAL">ลากิจ</option>
+                                <option value="OFFICIAL">ไปราชการ</option>
+                              </select>
+                            </label>
+                            <label>
+                              หมายเหตุ
+                              <input name="note" defaultValue={absence.note ?? ""} placeholder="ถ้ามี" />
+                            </label>
+                            <button className="btn primary" type="submit">
+                              บันทึก
+                            </button>
+                          </form>
+                        </details>
+                        <form action="/api/absences" method="post">
+                          <input type="hidden" name="intent" value="delete" />
+                          <input type="hidden" name="absenceId" value={absence.id} />
+                          <button className="btn danger" type="submit">
+                            ยกเลิก
+                          </button>
+                        </form>
                       </div>
                     </td>
                   </tr>
@@ -270,7 +306,7 @@ export default async function AbsencesPage({
                 {leaveRequests.map((request) => (
                   <tr key={request.id}>
                     <td>{formatThaiDate(request.date)}</td>
-                    <td>{request.teacher.name}</td>
+                    <td className="no-glossary">{request.teacher.name}</td>
                     <td>{request.teacher.department.name}</td>
                     <td>{absenceTypeLabel(request.type)}</td>
                     <td>{request.periods.map((period) => period.period).join(", ") || "-"}</td>

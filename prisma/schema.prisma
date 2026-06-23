@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -176,6 +176,7 @@ model AbsencePeriod {
   absence      TeacherAbsence   @relation(fields: [absenceId], references: [id])
   schedule     TeachingSchedule @relation(fields: [scheduleId], references: [id])
   substitution Substitution?
+  swapRequests SwapRequest[]
 }
 
 model Substitution {
@@ -197,9 +198,11 @@ model Substitution {
 
 model SwapRequest {
   id                 String     @id @default(cuid())
+  absencePeriodId    String?
   requesterTeacherId String
   targetTeacherId    String
   date               DateTime
+  toDate             DateTime?
   fromScheduleId     String
   toScheduleId       String
   status             SwapStatus @default(PENDING)
@@ -210,8 +213,9 @@ model SwapRequest {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  requesterTeacher Teacher @relation("SwapRequester", fields: [requesterTeacherId], references: [id])
-  targetTeacher    Teacher @relation("SwapTarget", fields: [targetTeacherId], references: [id])
+  requesterTeacher Teacher        @relation("SwapRequester", fields: [requesterTeacherId], references: [id])
+  targetTeacher    Teacher        @relation("SwapTarget", fields: [targetTeacherId], references: [id])
+  absencePeriod    AbsencePeriod? @relation(fields: [absencePeriodId], references: [id])
 }
 
 model TemporarySchedule {

@@ -274,7 +274,7 @@ export function BilingualGlossary() {
           const parent = node.parentElement;
           if (!parent) return NodeFilter.FILTER_REJECT;
           if (SKIP_TAGS.has(parent.tagName)) return NodeFilter.FILTER_REJECT;
-          if (parent.closest("[data-bilingual-processed], .en-caption")) return NodeFilter.FILTER_REJECT;
+          if (parent.closest("[data-bilingual-processed], .en-caption, .no-glossary")) return NodeFilter.FILTER_REJECT;
           if (!THAI_PATTERN.test(node.textContent ?? "")) return NodeFilter.FILTER_REJECT;
           if (!findNextMatch(node.textContent ?? "", 0)) return NodeFilter.FILTER_REJECT;
           return NodeFilter.FILTER_ACCEPT;

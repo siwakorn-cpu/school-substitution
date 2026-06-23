@@ -1,16 +1,30 @@
 :root {
   color-scheme: light;
-  --bg: #f6f7fb;
+  /* base — pastel gray / blue-gray */
+  --bg: #eef1f7;
   --surface: #ffffff;
-  --surface-soft: #eef4f8;
-  --text: #17212f;
-  --muted: #607084;
-  --line: #d8e0ea;
-  --primary: #0f766e;
-  --primary-dark: #115e59;
-  --danger: #b42318;
-  --warning: #b54708;
-  --success: #027a48;
+  --surface-soft: #e6ebf4;
+  --text: #2a3446;
+  --muted: #647289;
+  --line: #d3dbe8;
+
+  /* primary — pastel navy blue */
+  --primary: #4a648f;
+  --primary-dark: #3a5078;
+  --primary-soft: #eaf0f9;
+  --primary-softer: #dce6f4;
+  --primary-border: rgba(74, 100, 143, 0.28);
+  --primary-border-strong: rgba(74, 100, 143, 0.55);
+
+  /* accent — pastel yellow */
+  --accent: #e7b53e;
+  --accent-dark: #a9802a;
+  --accent-soft: #fbf1d2;
+
+  /* status — softened to fit the pastel palette */
+  --danger: #c14a3e;
+  --warning: #a9802a;
+  --success: #3f7d63;
 }
 
 * {
@@ -88,6 +102,7 @@ textarea {
   padding: 12px clamp(16px, 4vw, 32px);
   background: rgba(255, 255, 255, 0.94);
   border-bottom: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
   backdrop-filter: blur(10px);
 }
 
@@ -99,6 +114,7 @@ textarea {
 
 .brand strong {
   font-size: 17px;
+  color: var(--primary);
 }
 
 .brand span,
@@ -146,7 +162,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 6px 10px;
-  background: #f8fafc;
+  background: var(--surface-soft);
   color: var(--muted);
   font-size: 11px;
   line-height: 1.2;
@@ -155,6 +171,28 @@ textarea {
 .login-status strong {
   color: var(--text);
   font-size: 13px;
+}
+
+.login-status-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.login-status-on {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.login-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
 }
 
 .main {
@@ -310,12 +348,14 @@ table {
 .period-list-table {
   min-width: 0;
   table-layout: fixed;
+  font-size: 12px;
 }
 
 .period-list-table th,
 .period-list-table td {
-  padding: 9px 6px;
+  padding: 7px 6px;
   overflow-wrap: anywhere;
+  line-height: 1.3;
 }
 
 .period-list-table th:nth-child(1),
@@ -447,17 +487,17 @@ table {
   display: grid;
   gap: 2px;
   min-height: 50px;
-  border: 1px solid rgba(13, 148, 136, 0.22);
+  border: 1px solid var(--primary-border);
   border-radius: 6px;
   padding: 5px;
-  background: #f0fdfa;
-  color: #0f766e;
+  background: var(--primary-soft);
+  color: var(--primary);
   text-align: left;
 }
 
 .schedule-cell-link:hover {
-  border-color: rgba(13, 148, 136, 0.55);
-  background: #ccfbf1;
+  border-color: var(--primary-border-strong);
+  background: var(--primary-softer);
 }
 
 .schedule-cell-link strong {
@@ -491,39 +531,58 @@ table {
   display: none;
 }
 
+/* When open, the summary becomes a full-screen dim backdrop;
+   clicking it toggles the <details> closed (pure-CSS modal close). */
 .empty-schedule-add[open] summary {
-  border-color: rgba(13, 148, 136, 0.45);
-  background: #f0fdfa;
-  color: var(--primary);
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: rgba(16, 24, 40, 0.42);
+  color: transparent;
 }
 
 .weekly-add-form {
-  position: absolute;
-  z-index: 5;
-  right: 0;
+  position: fixed;
+  z-index: 50;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: grid;
-  gap: 6px;
-  width: min(280px, 76vw);
-  margin-top: 6px;
+  gap: 10px;
+  width: min(360px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  margin: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px;
+  border-radius: 10px;
+  padding: 16px;
   background: #fff;
-  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.14);
+  box-shadow: 0 24px 70px rgba(16, 24, 40, 0.22);
   text-align: left;
 }
 
 .weekly-add-form label {
-  font-size: 11px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .weekly-add-form input,
 .weekly-add-form select,
 .weekly-add-form button {
-  min-height: 30px;
-  border-radius: 6px;
-  padding: 5px 7px;
-  font-size: 11px;
+  min-height: 38px;
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.weekly-add-form button {
+  margin-top: 2px;
 }
 
 .schedule-row-actions {
@@ -563,8 +622,8 @@ table {
 }
 
 .schedule-edit-toggle[open] summary {
-  border-color: rgba(13, 148, 136, 0.35);
-  background: #ecfdf3;
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
 }
 
 .schedule-edit-form {
@@ -582,6 +641,70 @@ table {
 
 .schedule-edit-form button {
   min-height: 34px;
+}
+
+.absence-edit-toggle summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.absence-edit-toggle summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Open state: summary becomes a full-screen dim backdrop (click to close). */
+.absence-edit-toggle[open] summary {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: rgba(16, 24, 40, 0.42);
+  color: transparent;
+}
+
+.absence-edit-form {
+  position: fixed;
+  z-index: 50;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 10px;
+  width: min(320px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(16, 24, 40, 0.22);
+  text-align: left;
+}
+
+.absence-edit-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.absence-edit-form input,
+.absence-edit-form select {
+  min-height: 38px;
+  font-size: 13px;
+  color: var(--text);
 }
 
 .teacher-compact-section {
@@ -784,17 +907,17 @@ th {
 }
 
 .badge.success {
-  background: #dcfae6;
+  background: #dde9e2;
   color: var(--success);
 }
 
 .badge.warning {
-  background: #fef0c7;
-  color: var(--warning);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
 }
 
 .badge.danger {
-  background: #fee4e2;
+  background: #f4dcd8;
   color: var(--danger);
 }
 
@@ -914,6 +1037,39 @@ button:disabled {
   gap: 10px;
 }
 
+.swap-table {
+  min-width: 0;
+}
+
+.swap-table th,
+.swap-table td {
+  padding: 6px 7px;
+  font-size: 11px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.swap-table .form {
+  gap: 6px;
+}
+
+.swap-date-field {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
+.swap-date-field input {
+  min-height: 34px;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--text);
+}
+
 .compact-list {
   margin: 6px 0 0;
   padding-left: 18px;
@@ -924,7 +1080,7 @@ button:disabled {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: linear-gradient(135deg, #f5fbf8 0%, #eef4f8 55%, #fff7ed 100%);
+  background: linear-gradient(135deg, #e6ecf6 0%, #eef1f7 52%, #fbf1d6 100%);
 }
 
 .login-card {
@@ -986,6 +1142,92 @@ button:disabled {
 
 .recommendation-main p {
   margin: 0;
+}
+
+.share-block {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.share-card {
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  background: #ffffff;
+  border-top: 4px solid var(--accent);
+}
+
+.share-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.share-card-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.share-card-date {
+  color: var(--primary);
+  font-size: 15px;
+}
+
+.share-card-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.share-card-rows > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+
+.share-card-rows dt {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.share-card-rows dd {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.share-card-highlight {
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 2px -10px 0;
+  background: var(--primary-soft);
+}
+
+.share-card-highlight dt {
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.share-card-highlight dd {
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.share-note {
+  font-size: 12px;
 }
 
 @media (max-width: 760px) {
