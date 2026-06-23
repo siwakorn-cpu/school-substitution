@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/AppShell";
 import { requireUser } from "@/lib/auth";
+import { formatThaiDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { canViewReports } from "@/lib/rbac";
 import { buildSubstitutionReportWhere, currentMonthInputValue, normalizeRange } from "@/lib/reportFilters";
@@ -177,6 +178,7 @@ export default async function ReportsPage({
             <table>
               <thead>
                 <tr>
+                  <th>วันที่ลา</th>
                   <th>ชื่อครูที่ลา</th>
                   <th>คาบ</th>
                   <th>รหัสวิชา</th>
@@ -189,7 +191,7 @@ export default async function ReportsPage({
               <tbody>
                 {substitutionDetails.length === 0 ? (
                   <tr>
-                    <td className="muted" colSpan={7}>
+                    <td className="muted" colSpan={8}>
                       ไม่พบข้อมูลการสอนแทนในช่วงนี้
                     </td>
                   </tr>
@@ -200,6 +202,7 @@ export default async function ReportsPage({
 
                     return (
                       <tr key={item.id}>
+                        <td>{formatThaiDate(item.absencePeriod.absence.date)}</td>
                         <td>{item.absencePeriod.absence.teacher.name}</td>
                         <td>{item.period}</td>
                         <td>{schedule.subject.code || "-"}</td>

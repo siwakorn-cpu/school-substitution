@@ -39,6 +39,11 @@ body {
   word-spacing: normal;
 }
 
+.bilingual-text-grouped {
+  max-width: 100%;
+  margin-inline: 0;
+}
+
 .th-caption {
   display: block;
   line-height: 1.18;

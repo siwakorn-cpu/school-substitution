@@ -9,6 +9,8 @@ const GLOSSARY: [string, string][] = [
   ["ระบบจัดครูสอนแทน", "Teacher substitution system"],
   ["บันทึกการลา/ไปราชการ", "Absence / official duty"],
   ["บันทึกครูลา/ไปราชการ", "Record teacher absence / official duty"],
+  ["เลือกครูและวันที่เพื่อดูคาบที่ต้องจัดการ", "Select a teacher and date to view periods that need action"],
+  ["กรุณาเลือกครูก่อน", "Please select a teacher first"],
   ["คาบไปราชการ/ลากิจ", "Official duty / personal leave periods"],
   ["จัดสอนแทน", "Assign substitute"],
   ["แลกคาบ", "Swap periods"],
@@ -68,6 +70,13 @@ const GLOSSARY: [string, string][] = [
   ["รอผู้ดูแลระบบอนุมัติ", "Awaiting administrator approval"],
   ["บัญชีครูไม่มีสิทธิ์ดูรายงานรวม", "Teacher accounts cannot view combined reports"],
   ["Dashboard สถิติ", "Statistics dashboard"],
+  ["ข้อมูลประจำวันที่", "Information for"],
+  ["ครูที่ใช้งานอยู่", "Active teachers"],
+  ["คาบรอจัดการ", "Pending periods"],
+  ["แลกคาบรออนุมัติ", "Pending swap approvals"],
+  ["สอนแทนเดือนนี้", "Substitutions this month"],
+  ["รายการของฉัน", "My records"],
+  ["ยังไม่มีรายการสอนแทนล่าสุด", "No recent substitution records"],
   ["เปรียบเทียบภาระการเข้าแทนครูแต่ละคน", "Compare substitute load by teacher"],
   ["เลือกช่วงรายงาน", "Select report range"],
   ["ประเภทรายงาน", "Report type"],
@@ -80,6 +89,7 @@ const GLOSSARY: [string, string][] = [
   ["ครูในรายงาน", "Teachers in report"],
   ["ภาระการเข้าแทน", "Substitute load"],
   ["รายละเอียดการสอนแทน", "Substitution details"],
+  ["วันที่ลา", "Absence date"],
   ["ชื่อครูที่ลา", "Absent teacher name"],
   ["ชื่อครูที่สอนแทน", "Substitute teacher name"],
   ["รหัสวิชา", "Subject code"],
@@ -130,6 +140,7 @@ const GLOSSARY: [string, string][] = [
   ["ยืนยันเข้าแทน", "Confirm substitution"],
   ["ยืนยันส่งคำขอสลับ", "Confirm swap request"],
   ["แก้ไขการจัดสอนแทน", "Edit substitute assignment"],
+  ["ย้อนหลังแก้ไขได้เฉพาะผู้ดูแลระบบ", "Past records can be edited by administrators only"],
   ["บันทึกครูคนนี้", "Save this teacher"],
   ["เลือกครูคนนี้", "Select this teacher"],
   ["กำลังแก้ไขการจัดสอนแทน", "Editing substitute assignment"],
@@ -168,6 +179,7 @@ const GLOSSARY: [string, string][] = [
   ["เพิ่มผู้ใช้", "Add user"],
   ["นำเข้าผู้ใช้", "Import users"],
   ["นำเข้าผู้ใช้หลายคน", "Bulk import users"],
+  ["สร้างบัญชีเข้าสู่ระบบ ตั้งสิทธิ์ตามหน้าที่ และเปิดปิดการใช้งาน", "Create user accounts, set role permissions, and enable or disable access"],
   ["นำเข้าครู", "Import teachers"],
   ["นำเข้ารายชื่อครู", "Import teacher list"],
   ["รายชื่อครู", "Teacher list"],
@@ -276,6 +288,25 @@ export function BilingualGlossary() {
 
 function replaceTextNode(node: Text) {
   const text = node.textContent ?? "";
+  const matches = findMatches(text);
+
+  if (shouldGroupTextNode(text, matches)) {
+    const container = document.createElement("span");
+    container.className = "bilingual-processed";
+    container.dataset.bilingualProcessed = "true";
+
+    const leadingWhitespace = text.match(/^\s*/)?.[0] ?? "";
+    const trailingWhitespace = text.match(/\s*$/)?.[0] ?? "";
+    const trimmedText = text.trim();
+
+    if (leadingWhitespace) container.append(leadingWhitespace);
+    container.append(createBilingualWrapper(trimmedText, matches.map((match) => match.english).join(" / "), "grouped"));
+    if (trailingWhitespace) container.append(trailingWhitespace);
+
+    node.replaceWith(container);
+    return;
+  }
+
   const container = document.createElement("span");
   container.className = "bilingual-processed";
   container.dataset.bilingualProcessed = "true";
@@ -293,27 +324,51 @@ function replaceTextNode(node: Text) {
       container.append(text.slice(index, match.index));
     }
 
-    const { thai, english } = match;
-    const wrapper = document.createElement("span");
-    wrapper.className = "bilingual-text";
-    wrapper.dataset.bilingualProcessed = "true";
-
-    const thaiText = document.createElement("span");
-    thaiText.className = "th-caption";
-    thaiText.textContent = thai;
-    wrapper.append(thaiText);
-
-    const caption = document.createElement("span");
-    caption.className = "en-caption";
-    caption.lang = "en";
-    caption.textContent = english;
-    wrapper.append(caption);
-
-    container.append(wrapper);
-    index = match.index + thai.length;
+    container.append(createBilingualWrapper(match.thai, match.english));
+    index = match.index + match.thai.length;
   }
 
   node.replaceWith(container);
+}
+
+function createBilingualWrapper(thai: string, english: string, variant?: "grouped") {
+  const wrapper = document.createElement("span");
+  wrapper.className = variant === "grouped" ? "bilingual-text bilingual-text-grouped" : "bilingual-text";
+  wrapper.dataset.bilingualProcessed = "true";
+
+  const thaiText = document.createElement("span");
+  thaiText.className = "th-caption";
+  thaiText.textContent = thai;
+  wrapper.append(thaiText);
+
+  const caption = document.createElement("span");
+  caption.className = "en-caption";
+  caption.lang = "en";
+  caption.textContent = english;
+  wrapper.append(caption);
+
+  return wrapper;
+}
+
+function findMatches(text: string) {
+  const matches: { thai: string; english: string; index: number }[] = [];
+  let index = 0;
+
+  while (index < text.length) {
+    const match = findNextMatch(text, index);
+    if (!match) break;
+    matches.push(match);
+    index = match.index + match.thai.length;
+  }
+
+  return matches;
+}
+
+function shouldGroupTextNode(text: string, matches: { thai: string; english: string; index: number }[]) {
+  if (matches.length === 0) return false;
+  const trimmedText = text.trim();
+  if (matches.length > 1) return true;
+  return trimmedText !== matches[0].thai;
 }
 
 function findNextMatch(text: string, startIndex: number) {

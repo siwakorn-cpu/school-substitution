@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { canManageSubstitution } from "@/lib/rbac";
 import { validateSubstitute } from "@/lib/recommendSubstitutes";
 import { redirectTo } from "@/lib/redirect";
+import { parseDateInput, toDateInputValue } from "@/lib/date";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -25,6 +26,11 @@ export async function POST(request: Request) {
 
   if (!absencePeriod) {
     return redirectTo(request, "/substitutions");
+  }
+
+  const today = parseDateInput(toDateInputValue());
+  if (absencePeriod.absence.date < today && user.role !== "ADMIN") {
+    return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
   }
 
   await prisma.substitution.upsert({

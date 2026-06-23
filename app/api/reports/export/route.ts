@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth";
+import { formatThaiDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { canViewReports } from "@/lib/rbac";
 import { buildSubstitutionReportWhere } from "@/lib/reportFilters";
@@ -68,12 +69,13 @@ export async function GET(request: Request) {
     ]),
     [],
     ["รายละเอียดการสอนแทน"],
-    ["ชื่อครูที่ลา", "คาบ", "รหัสวิชา", "วิชา", "ห้อง ม.", "ห้องเรียน", "ชื่อครูที่สอนแทน"],
+    ["วันที่ลา", "ชื่อครูที่ลา", "คาบ", "รหัสวิชา", "วิชา", "ห้อง ม.", "ห้องเรียน", "ชื่อครูที่สอนแทน"],
     ...substitutionDetails.map((item) => {
       const schedule = item.absencePeriod.schedule;
       const substituteTeacher = substituteTeacherMap.get(item.substituteTeacherId);
 
       return [
+        formatThaiDate(item.absencePeriod.absence.date),
         item.absencePeriod.absence.teacher.name,
         String(item.period),
         schedule.subject.code || "-",

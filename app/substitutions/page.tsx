@@ -88,6 +88,9 @@ export default async function SubstitutionsPage({
     dateScope,
     departmentId: selectedDepartmentId
   });
+  const selectedIsPast = selected ? selected.absence.date < today : false;
+  const canEditSelectedSubstitution = canAssignSubstitution && (!selectedIsPast || user.role === "ADMIN");
+  const shouldEditSelectedSubstitution = isEditing && canEditSelectedSubstitution;
 
   return (
     <AppShell user={user}>
@@ -185,7 +188,7 @@ export default async function SubstitutionsPage({
                 {selected.schedule.specialRoom ? ` · ห้อง/อาคาร: ${selected.schedule.specialRoom.name}` : ""}
               </p>
 
-              {selected.substitution && !isEditing ? (
+              {selected.substitution && !shouldEditSelectedSubstitution ? (
                 <div className="recommendation-list">
                   <div className="recommendation-item">
                     <div className="recommendation-main">
@@ -197,7 +200,7 @@ export default async function SubstitutionsPage({
                           : "ไม่พบข้อมูลครู"}
                       </p>
                     </div>
-                    {canAssignSubstitution ? (
+                    {canEditSelectedSubstitution ? (
                       <a
                         className="btn primary"
                         href={`/substitutions?${new URLSearchParams({
@@ -208,6 +211,8 @@ export default async function SubstitutionsPage({
                       >
                         แก้ไขการจัดสอนแทน
                       </a>
+                    ) : selectedIsPast ? (
+                      <span className="badge warning">ย้อนหลังแก้ไขได้เฉพาะผู้ดูแลระบบ</span>
                     ) : null}
                   </div>
                 </div>
@@ -217,7 +222,7 @@ export default async function SubstitutionsPage({
                 <p className="error">ยังไม่พบครูที่ผ่านเงื่อนไขในคาบนี้</p>
               ) : (
                 <div className="recommendation-list">
-                  {selected.substitution && isEditing ? (
+                  {selected.substitution && shouldEditSelectedSubstitution ? (
                     <div className="actions">
                       <span className="badge warning">กำลังแก้ไขการจัดสอนแทน</span>
                       <a
