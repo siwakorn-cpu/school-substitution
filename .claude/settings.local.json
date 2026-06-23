@@ -22,7 +22,9 @@
       "Bash(DATABASE_URL=file:./dev.db node -e ' *)",
       "mcp__Claude_in_Chrome__navigate",
       "Bash(grep -nE '#[0-9a-fA-F]{3,8}|rgba?\\\\\\(' app/globals.css)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(kill 83155)",
+      "Bash(lsof -i :3000 -sTCP:LISTEN -n -P)"
     ]
   }
 }

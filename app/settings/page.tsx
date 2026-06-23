@@ -31,6 +31,13 @@ const settingsLinks = [
     descriptionEn: "Reset system data after backup and RESET confirmation"
   },
   {
+    href: "/settings/restore",
+    title: "กู้คืนข้อมูล",
+    titleEn: "Restore from backup",
+    description: "โหลดไฟล์สำรองข้อมูล (.json) กลับเข้าระบบ แบบเติมส่วนที่ขาดหรือแทนที่ทั้งหมด",
+    descriptionEn: "Load a backup (.json) file back into the system, either merging or replacing all data"
+  },
+  {
     href: "/settings/subjects",
     title: "ตั้งค่ารายวิชา",
     titleEn: "Subject settings",
