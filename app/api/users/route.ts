@@ -6,6 +6,7 @@ export async function POST(request: Request) {
   const currentUser = await requireAdmin();
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
+  const redirectWithError = (message: string) => redirectTo(request, `/users?error=${encodeURIComponent(message)}`);
 
   if (intent === "create") {
     const username = String(formData.get("username") ?? "").trim();
@@ -39,6 +40,18 @@ export async function POST(request: Request) {
         ...(password.length >= 6 ? { passwordHash: await hashPassword(password) } : {})
       }
     });
+  }
+
+  if (intent === "delete") {
+    const id = String(formData.get("id") ?? "");
+    if (!id) return redirectWithError("ไม่พบผู้ใช้ที่ต้องการลบ");
+    if (id === currentUser.id) return redirectWithError("ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่");
+
+    try {
+      await prisma.user.delete({ where: { id } });
+    } catch {
+      return redirectWithError("ลบผู้ใช้ไม่สำเร็จ");
+    }
   }
 
   return redirectTo(request, "/users");

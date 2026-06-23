@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/AppShell";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { UserActions } from "./UserActions";
 
 export default async function UsersPage({
   searchParams
@@ -20,6 +21,12 @@ export default async function UsersPage({
       orderBy: { code: "asc" }
     })
   ]);
+  const teacherOptions = teachers.map((teacher) => ({
+    id: teacher.id,
+    code: teacher.code,
+    name: teacher.name,
+    linkedUserId: teacher.user?.id ?? null
+  }));
 
   return (
     <AppShell user={user}>
@@ -100,10 +107,10 @@ export default async function UsersPage({
           </form>
         </div>
 
-        <div className="card span-8">
+        <div className="card span-12 users-account-card">
           <h2>บัญชีผู้ใช้</h2>
           <div className="table-wrap">
-            <table>
+            <table className="compact-table users-table">
               <thead>
                 <tr>
                   <th>ชื่อผู้ใช้</th>
@@ -116,48 +123,28 @@ export default async function UsersPage({
               <tbody>
                 {users.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.username}</td>
+                    <td className="user-name-cell">{item.username}</td>
                     <td>{roleLabel(item.role)}</td>
                     <td className="no-glossary">
                       {item.teacher
                         ? `${item.teacher.code} - ${item.teacher.name} (${item.teacher.department.name})`
                         : "-"}
                     </td>
-                    <td>
+                    <td className="user-status-cell">
                       <span className={`badge ${item.isActive ? "success" : "warning"}`}>
                         {item.isActive ? "ใช้งาน" : "รออนุมัติ/ปิดใช้งาน"}
                       </span>
                     </td>
-                    <td>
-                      <form className="actions" action="/api/users" method="post">
-                        <input type="hidden" name="intent" value="update" />
-                        <input type="hidden" name="id" value={item.id} />
-                        <select name="role" defaultValue={item.role} aria-label="สิทธิ์">
-                          <option value="ADMIN">Admin</option>
-                          <option value="PERSONNEL">หัวหน้างานบุคคล</option>
-                          <option value="HEAD">หัวหน้ากลุ่มสาระ</option>
-                          <option value="DEPT_REP">ตัวแทนกลุ่มสาระ</option>
-                          <option value="TEACHER">ครู</option>
-                        </select>
-                        <select name="teacherId" defaultValue={item.teacherId ?? ""} aria-label="ครูที่ผูก">
-                          <option value="">ไม่ผูกกับครู</option>
-                          {teachers
-                            .filter((teacher) => !teacher.user || teacher.id === item.teacherId)
-                            .map((teacher) => (
-                              <option key={teacher.id} value={teacher.id}>
-                                {teacher.code} - {teacher.name}
-                              </option>
-                            ))}
-                        </select>
-                        <select name="isActive" defaultValue={item.isActive ? "true" : "false"} aria-label="สถานะ">
-                          <option value="true">อนุมัติ/ใช้งาน</option>
-                          <option value="false">รออนุมัติ/ปิดใช้งาน</option>
-                        </select>
-                        <input name="password" type="password" placeholder="รหัสใหม่ ถ้าต้องการ" aria-label="รหัสผ่านใหม่" />
-                        <button className="btn" type="submit">
-                          บันทึก
-                        </button>
-                      </form>
+                    <td className="user-actions-cell">
+                      <UserActions
+                        userId={item.id}
+                        username={item.username}
+                        role={item.role}
+                        teacherId={item.teacherId}
+                        isActive={item.isActive}
+                        currentUserId={user.id}
+                        teachers={teacherOptions}
+                      />
                     </td>
                   </tr>
                 ))}

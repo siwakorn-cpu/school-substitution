@@ -143,6 +143,15 @@ textarea {
   cursor: pointer;
 }
 
+.nav a,
+.nav button {
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
 .btn.primary,
 .nav a.active {
   border-color: var(--primary);
@@ -162,10 +171,10 @@ textarea {
 .login-status {
   display: grid;
   gap: 0;
-  min-height: 40px;
+  min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 4px 8px;
   background: var(--surface-soft);
   color: var(--muted);
   font-size: 11px;
@@ -174,7 +183,8 @@ textarea {
 
 .login-status strong {
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .login-status-row {
@@ -203,6 +213,50 @@ textarea {
   width: min(1180px, 100%);
   margin: 0 auto;
   padding: 24px clamp(14px, 4vw, 28px) 48px;
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 10px;
+  }
+
+  .brand {
+    min-width: 116px;
+  }
+
+  .brand strong {
+    font-size: 14px;
+    line-height: 1.15;
+  }
+
+  .brand span {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .nav {
+    gap: 5px;
+  }
+
+  .nav a,
+  .nav button {
+    min-height: 30px;
+    border-radius: 7px;
+    padding: 4px 7px;
+    font-size: 11px;
+  }
+
+  .login-status {
+    min-height: 30px;
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+
+  .login-status strong {
+    font-size: 11px;
+  }
 }
 
 .page-head {
@@ -643,6 +697,134 @@ table {
 .level-meeting-form .btn {
   min-height: 36px;
   padding: 7px 10px;
+}
+
+.users-account-card {
+  overflow: visible;
+}
+
+.users-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.users-table th:nth-child(1),
+.users-table td:nth-child(1) {
+  width: 16%;
+}
+
+.users-table th:nth-child(2),
+.users-table td:nth-child(2) {
+  width: 15%;
+}
+
+.users-table th:nth-child(3),
+.users-table td:nth-child(3) {
+  width: 32%;
+}
+
+.users-table th:nth-child(4),
+.users-table td:nth-child(4) {
+  width: 16%;
+}
+
+.users-table th:nth-child(5),
+.users-table td:nth-child(5) {
+  width: 21%;
+}
+
+.user-name-cell,
+.users-table td.no-glossary {
+  overflow-wrap: anywhere;
+}
+
+.user-status-cell .badge {
+  white-space: normal;
+}
+
+.user-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.user-edit-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+}
+
+.user-edit-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(42, 52, 70, 0.22);
+  cursor: default;
+}
+
+.user-edit-modal {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  z-index: 81;
+  display: grid;
+  width: min(540px, calc(100vw - 32px));
+  max-height: calc(100vh - 96px);
+  transform: translateX(-50%);
+  overflow: auto;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 48px rgba(16, 24, 40, 0.14);
+}
+
+.user-edit-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-edit-modal-head h3 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.user-edit-username {
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.user-edit-modal input,
+.user-edit-modal select {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.user-delete-button {
+  min-height: 36px;
+  padding: 7px 10px;
+  background: #fff;
+}
+
+.user-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (max-width: 820px) {
+  .users-table {
+    min-width: 680px;
+  }
 }
 
 .empty-schedule-add {
