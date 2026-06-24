@@ -122,6 +122,7 @@ export default async function SwapsPage({
 
   return (
     <AppShell user={user}>
+      <div className="compact-page">
       <div className="page-head">
         <div>
           <h1>จัดการการเปลี่ยนแปลงคาบสอน</h1>
@@ -130,8 +131,8 @@ export default async function SwapsPage({
       </div>
 
       <section className="grid">
-        <div className="card">
-          <h2>คาบไปราชการ/ลากิจ</h2>
+        <div className="card card-pending">
+          <h2>คาบไปราชการ/ลากิจ (คาบที่ยังไม่แลกคาบหรือขอให้สอนแทน)</h2>
           <div className="table-wrap">
             <table>
               <thead>
@@ -406,7 +407,7 @@ export default async function SwapsPage({
           )}
         </div>
 
-        <div className="card">
+        <div className="card card-resolved">
           <h2>รายการแลกคาบ (สลับคาบ)</h2>
           <div className="table-wrap">
             <table>
@@ -466,7 +467,7 @@ export default async function SwapsPage({
           </div>
         </div>
 
-        <div className="card">
+        <div className="card card-resolved">
           <h2>รายการเข้าแทน</h2>
           <div className="table-wrap">
             <table>
@@ -518,6 +519,7 @@ export default async function SwapsPage({
           </div>
         </div>
       </section>
+      </div>
     </AppShell>
   );
 }

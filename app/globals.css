@@ -406,6 +406,113 @@ a.stat:hover {
   font-size: 13px;
 }
 
+/* Compact layout for บันทึกครูลา/ไปราชการ and จัดการการเปลี่ยนแปลงคาบสอน */
+.compact-page .page-head {
+  margin-bottom: 12px;
+}
+
+.compact-page .grid {
+  gap: 10px;
+}
+
+.compact-page .card {
+  padding: 12px;
+}
+
+.compact-page h1 {
+  font-size: 20px;
+}
+
+.compact-page h2 {
+  font-size: 14px;
+}
+
+.compact-page h3 {
+  font-size: 13px;
+}
+
+.compact-page p,
+.compact-page .muted {
+  font-size: 12px;
+}
+
+.compact-page .form {
+  gap: 9px;
+}
+
+.compact-page .form-row {
+  gap: 9px;
+}
+
+.compact-page label {
+  font-size: 12px;
+  gap: 4px;
+}
+
+.compact-page input,
+.compact-page select {
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.compact-page table {
+  font-size: 12px;
+}
+
+.compact-page th,
+.compact-page td {
+  padding: 5px 8px;
+  line-height: 1.3;
+}
+
+.compact-page .btn {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.compact-page .badge {
+  font-size: 10px;
+}
+
+.compact-page .compact-list {
+  font-size: 11px;
+}
+
+.compact-page .audit-line {
+  font-size: 11px;
+}
+
+/* Pastel tone cards on จัดการการเปลี่ยนแปลงคาบสอน */
+.card-pending {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.card-pending h2 {
+  color: #c2620a;
+}
+
+.card-pending thead th {
+  background: #ffedd5;
+  color: #9a4c08;
+}
+
+.card-resolved {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.card-resolved h2 {
+  color: #15803d;
+}
+
+.card-resolved thead th {
+  background: #dcfce7;
+  color: #14672f;
+}
+
 .form {
   display: grid;
   gap: 12px;

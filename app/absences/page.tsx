@@ -67,6 +67,7 @@ export default async function AbsencesPage({
 
   return (
     <AppShell user={user}>
+      <div className="compact-page">
       <div className="page-head">
         <div>
           <h1>บันทึกครูลา/ไปราชการ</h1>
@@ -323,6 +324,7 @@ export default async function AbsencesPage({
           </div>
         </div>
       </section>
+      </div>
     </AppShell>
   );
 }
