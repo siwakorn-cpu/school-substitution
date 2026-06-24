@@ -44,7 +44,9 @@
       "Bash(python3 -c ' *)",
       "Bash(git add *)",
       "Bash(DATABASE_URL=\"file:./dev.db\" npx prisma db push --schema=prisma/schema.local.prisma --skip-generate)",
-      "Bash(DATABASE_URL=\"file:./dev.db\" npx tsx prisma/demo-today.ts)"
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx tsx prisma/demo-today.ts)",
+      "Bash(awk 'NR==313,NR==490' app/swaps/page.tsx)",
+      "Bash(grep -n '^        </div>$' app/swaps/page.tsx)"
     ]
   }
 }

@@ -205,8 +205,7 @@ export default async function SwapsPage({
     "ห้อง/อาคารที่สอนแทน",
     "ครูต้นทาง",
     "ครูเข้าแทน",
-    "การอนุมัติ",
-    "หมายเหตุ"
+    "การอนุมัติ"
   ];
   const substitutionExportRows = substitutionTableRows.map((row) => [
     formatThaiDate(row.record.date),
@@ -220,8 +219,7 @@ export default async function SwapsPage({
     row.substituteSpecialRoomName,
     row.record.absencePeriod.absence.teacher.name,
     row.substituteTeacherName,
-    row.statusLabel,
-    row.record.note || "-"
+    row.statusLabel
   ]);
 
   const selected = absencePeriodId
@@ -310,7 +308,7 @@ export default async function SwapsPage({
           </div>
         </div>
 
-        <div className="card">
+        <div className="card swap-detail-panel">
           {!selected ? (
             <p className="muted">เลือกคาบไปราชการ/ลากิจเพื่อจัดการเข้าแทนหรือสลับคาบ</p>
           ) : (
@@ -706,7 +704,6 @@ export default async function SwapsPage({
                     <th>ครูต้นทาง</th>
                     <th>ครูเข้าแทน</th>
                     <th>การอนุมัติ</th>
-                    <th>หมายเหตุ</th>
                     <th>จัดการ</th>
                   </tr>
                 </thead>
@@ -742,7 +739,6 @@ export default async function SwapsPage({
                             {row.statusLabel}
                           </span>
                         </td>
-                        <td>{row.record.note || "-"}</td>
                         <td>
                           {canRespondToThisRow || canApproveScheduleChange ? (
                             <div className="actions">
