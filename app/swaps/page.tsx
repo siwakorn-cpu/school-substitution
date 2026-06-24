@@ -51,8 +51,8 @@ export default async function SwapsPage({
           type: { in: ["OFFICIAL", "PERSONAL"] },
           ...(isTeacherScoped ? { teacherId: user.teacherId ?? "" } : {})
         },
-        // Hide periods already handled: an entered substitute, or an active swap (pending/approved).
-        substitution: null,
+        // Hide periods already handled: an active substitute (pending/approved), or an active swap (pending/approved).
+        OR: [{ substitution: null }, { substitution: { status: "REJECTED" } }],
         swapRequests: { none: { status: { in: ["PENDING", "APPROVED"] } } }
       },
       include: {
@@ -176,6 +176,8 @@ export default async function SwapsPage({
     const originalSpecialRoom = record.absencePeriod.schedule.specialRoom;
     const substituteSubject = substitutionSubjectMap.get(record.subjectId);
     const substituteSpecialRoom = record.specialRoomId ? substitutionSpecialRoomMap.get(record.specialRoomId) : null;
+    const statusLabel =
+      record.status === "APPROVED" ? "อนุมัติแล้ว" : record.status === "REJECTED" ? "ไม่อนุมัติ" : "รออนุมัติจากครูเข้าแทน";
     return {
       id: record.id,
       record,
@@ -186,7 +188,8 @@ export default async function SwapsPage({
       substituteSubjectCode: substituteSubject?.code ?? "-",
       substituteSubjectName: substituteSubject?.name ?? "-",
       substituteSpecialRoomName: substituteSpecialRoom?.name ?? "-",
-      substituteTeacherName: substituteTeacherMap.get(record.substituteTeacherId)?.name ?? "ไม่พบข้อมูลครู"
+      substituteTeacherName: substituteTeacherMap.get(record.substituteTeacherId)?.name ?? "ไม่พบข้อมูลครู",
+      statusLabel
     };
   });
 
@@ -202,6 +205,7 @@ export default async function SwapsPage({
     "ห้อง/อาคารที่สอนแทน",
     "ครูต้นทาง",
     "ครูเข้าแทน",
+    "การอนุมัติ",
     "หมายเหตุ"
   ];
   const substitutionExportRows = substitutionTableRows.map((row) => [
@@ -216,6 +220,7 @@ export default async function SwapsPage({
     row.substituteSpecialRoomName,
     row.record.absencePeriod.absence.teacher.name,
     row.substituteTeacherName,
+    row.statusLabel,
     row.record.note || "-"
   ]);
 
@@ -240,13 +245,21 @@ export default async function SwapsPage({
     ? await Promise.all([getSwapCandidates(selected.id), recommendSubstitutes(selected.id)])
     : [[], []];
 
-  const hasResolution = Boolean(selected?.substitution || existingSwapRequest);
+  const activeSubstitution =
+    selected?.substitution && selected.substitution.status !== "REJECTED" ? selected.substitution : null;
+  const hasResolution = Boolean(activeSubstitution || existingSwapRequest);
   const canEditResolution =
-    canApproveScheduleChange && (existingSwapRequest?.status !== "APPROVED" || user.role === "ADMIN");
+    canApproveScheduleChange &&
+    (existingSwapRequest?.status !== "APPROVED" || user.role === "ADMIN") &&
+    (activeSubstitution?.status !== "APPROVED" || user.role === "ADMIN");
   const canCancelSubstitution = canApproveScheduleChange;
   const canCancelSwap =
     existingSwapRequest?.status === "PENDING" &&
     (canApproveScheduleChange || (Boolean(user.teacherId) && existingSwapRequest.requesterTeacher.id === user.teacherId));
+  const canRespondAsSubstitute =
+    activeSubstitution?.status === "PENDING" &&
+    Boolean(user.teacherId) &&
+    activeSubstitution.substituteTeacherId === user.teacherId;
   const today = parseDateInput(toDateInputValue());
   const selectedIsPast = selected ? selected.absence.date < today : false;
   const canActOnSelected = !selectedIsPast || user.role === "ADMIN";
@@ -312,16 +325,19 @@ export default async function SwapsPage({
                 <div className="recommendation-list">
                   <div className="recommendation-item">
                     <div className="recommendation-main">
-                      {selected.substitution ? (
+                      {activeSubstitution ? (
                         <>
-                          <strong>เข้าแทนแล้ว</strong>
+                          <strong>{activeSubstitution.status === "APPROVED" ? "เข้าแทนแล้ว" : "รออนุมัติจากครูเข้าแทน"}</strong>
                           <p className="muted">
                             ครูเข้าแทน:{" "}
                             <span className="no-glossary">
-                              {substituteTeacherMap.get(selected.substitution.substituteTeacherId)?.name ??
+                              {substituteTeacherMap.get(activeSubstitution.substituteTeacherId)?.name ??
                                 "ไม่พบข้อมูลครู"}
                             </span>
                           </p>
+                          <span className={`badge ${activeSubstitution.status === "APPROVED" ? "success" : "warning"}`}>
+                            {activeSubstitution.status === "APPROVED" ? "อนุมัติแล้ว" : "รออนุมัติ"}
+                          </span>
                         </>
                       ) : existingSwapRequest ? (
                         <>
@@ -347,7 +363,25 @@ export default async function SwapsPage({
                           แก้ไข
                         </a>
                       ) : null}
-                      {selected.substitution && canCancelSubstitution ? (
+                      {canRespondAsSubstitute ? (
+                        <>
+                          <form action="/api/swaps" method="post">
+                            <input type="hidden" name="intent" value="approve_substitute" />
+                            <input type="hidden" name="absencePeriodId" value={selected.id} />
+                            <button className="btn primary" type="submit">
+                              อนุมัติเข้าแทน
+                            </button>
+                          </form>
+                          <form action="/api/swaps" method="post">
+                            <input type="hidden" name="intent" value="reject_substitute" />
+                            <input type="hidden" name="absencePeriodId" value={selected.id} />
+                            <button className="btn danger" type="submit">
+                              ไม่อนุมัติ
+                            </button>
+                          </form>
+                        </>
+                      ) : null}
+                      {activeSubstitution && canCancelSubstitution ? (
                         <form action="/api/swaps" method="post">
                           <input type="hidden" name="intent" value="cancel_substitute" />
                           <input type="hidden" name="absencePeriodId" value={selected.id} />
@@ -671,45 +705,87 @@ export default async function SwapsPage({
                     <th>ห้อง/อาคารที่สอนแทน</th>
                     <th>ครูต้นทาง</th>
                     <th>ครูเข้าแทน</th>
+                    <th>การอนุมัติ</th>
                     <th>หมายเหตุ</th>
                     <th>จัดการ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {substitutionTableRows.map((row) => (
-                    <tr key={row.id}>
-                      <td>{formatThaiDate(row.record.date)}</td>
-                      <td>{row.classRoomName}</td>
-                      <td>{row.record.period}</td>
-                      <td>{row.originalSubjectCode}</td>
-                      <td>{row.originalSubjectName}</td>
-                      <td>{row.originalSpecialRoomName}</td>
-                      <td>{row.substituteSubjectCode}</td>
-                      <td>{row.substituteSubjectName}</td>
-                      <td>{row.substituteSpecialRoomName}</td>
-                      <td className="no-glossary">{row.record.absencePeriod.absence.teacher.name}</td>
-                      <td className="no-glossary">{row.substituteTeacherName}</td>
-                      <td>{row.record.note || "-"}</td>
-                      <td>
-                        {canApproveScheduleChange ? (
-                          <div className="actions">
-                            <a className="btn" href={`/swaps?absencePeriodId=${row.record.absencePeriodId}&edit=1`}>
-                              แก้ไข
-                            </a>
-                            <form action="/api/swaps" method="post">
-                              <input type="hidden" name="intent" value="cancel_substitute" />
-                              <input type="hidden" name="absencePeriodId" value={row.record.absencePeriodId} />
-                              <button className="btn danger" type="submit">
-                                ยกเลิก
-                              </button>
-                            </form>
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {substitutionTableRows.map((row) => {
+                    const canRespondToThisRow =
+                      row.record.status === "PENDING" &&
+                      Boolean(user.teacherId) &&
+                      row.record.substituteTeacherId === user.teacherId;
+                    return (
+                      <tr key={row.id}>
+                        <td>{formatThaiDate(row.record.date)}</td>
+                        <td>{row.classRoomName}</td>
+                        <td>{row.record.period}</td>
+                        <td>{row.originalSubjectCode}</td>
+                        <td>{row.originalSubjectName}</td>
+                        <td>{row.originalSpecialRoomName}</td>
+                        <td>{row.substituteSubjectCode}</td>
+                        <td>{row.substituteSubjectName}</td>
+                        <td>{row.substituteSpecialRoomName}</td>
+                        <td className="no-glossary">{row.record.absencePeriod.absence.teacher.name}</td>
+                        <td className="no-glossary">{row.substituteTeacherName}</td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              row.record.status === "APPROVED"
+                                ? "success"
+                                : row.record.status === "REJECTED"
+                                  ? "danger"
+                                  : "warning"
+                            }`}
+                          >
+                            {row.statusLabel}
+                          </span>
+                        </td>
+                        <td>{row.record.note || "-"}</td>
+                        <td>
+                          {canRespondToThisRow || canApproveScheduleChange ? (
+                            <div className="actions">
+                              {canRespondToThisRow ? (
+                                <>
+                                  <form action="/api/swaps" method="post">
+                                    <input type="hidden" name="intent" value="approve_substitute" />
+                                    <input type="hidden" name="absencePeriodId" value={row.record.absencePeriodId} />
+                                    <button className="btn primary" type="submit">
+                                      อนุมัติ
+                                    </button>
+                                  </form>
+                                  <form action="/api/swaps" method="post">
+                                    <input type="hidden" name="intent" value="reject_substitute" />
+                                    <input type="hidden" name="absencePeriodId" value={row.record.absencePeriodId} />
+                                    <button className="btn danger" type="submit">
+                                      ไม่อนุมัติ
+                                    </button>
+                                  </form>
+                                </>
+                              ) : null}
+                              {canApproveScheduleChange ? (
+                                <>
+                                  <a className="btn" href={`/swaps?absencePeriodId=${row.record.absencePeriodId}&edit=1`}>
+                                    แก้ไข
+                                  </a>
+                                  <form action="/api/swaps" method="post">
+                                    <input type="hidden" name="intent" value="cancel_substitute" />
+                                    <input type="hidden" name="absencePeriodId" value={row.record.absencePeriodId} />
+                                    <button className="btn danger" type="submit">
+                                      ยกเลิก
+                                    </button>
+                                  </form>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

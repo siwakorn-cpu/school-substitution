@@ -337,10 +337,11 @@ function absenceTypeLabel(type: string) {
 
 // Status colour of a period button: green = handled, yellow = pending approval, red = not handled yet.
 function periodStatusClass(period: {
-  substitution: unknown | null;
+  substitution: { status: string } | null;
   swapRequests: { status: string }[];
 }) {
-  if (period.substitution) return "period-status-done";
+  if (period.substitution?.status === "APPROVED") return "period-status-done";
+  if (period.substitution?.status === "PENDING") return "period-status-pending";
   if (period.swapRequests.some((swap) => swap.status === "APPROVED")) return "period-status-done";
   if (period.swapRequests.some((swap) => swap.status === "PENDING")) return "period-status-pending";
   return "period-status-none";

@@ -41,6 +41,7 @@ export async function POST(request: Request) {
         ? await prisma.subject.findUnique({ where: { id: requestedSubjectId } })
         : null;
       const subjectId = subject?.id ?? absencePeriod.schedule.subjectId;
+      // Awaiting the substitute teacher's own approval — no temporary schedule yet.
       await prisma.$transaction([
         prisma.substitution.upsert({
           where: { absencePeriodId },
@@ -54,32 +55,77 @@ export async function POST(request: Request) {
             subjectId,
             specialRoomId: absencePeriod.schedule.specialRoomId,
             assignedById: user.id,
+            status: "PENDING",
+            approvedById: null,
             note: reason || "เข้าแทน"
           },
           update: {
             substituteTeacherId,
             assignedById: user.id,
+            status: "PENDING",
+            approvedById: null,
             note: reason || "เข้าแทน"
           }
         }),
         prisma.absencePeriod.update({
           where: { id: absencePeriodId },
-          data: { actionType: "SUBSTITUTE", status: "DONE" }
-        }),
-        prisma.temporarySchedule.create({
-          data: {
-            date: absencePeriod.absence.date,
-            originalScheduleId: absencePeriod.scheduleId,
-            teacherId: substituteTeacherId,
-            period: absencePeriod.period,
-            classRoomId: absencePeriod.schedule.classRoomId,
-            subjectId,
-            specialRoomId: absencePeriod.schedule.specialRoomId,
-            sourceType: "SUBSTITUTE",
-            sourceId: absencePeriodId
-          }
+          data: { actionType: "SUBSTITUTE", status: "PENDING" }
         })
       ]);
+    }
+
+    return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+  }
+
+  if (intent === "approve_substitute" || intent === "reject_substitute") {
+    const absencePeriodId = String(formData.get("absencePeriodId") ?? "");
+    const [substitution, absencePeriod] = await Promise.all([
+      prisma.substitution.findUnique({ where: { absencePeriodId } }),
+      prisma.absencePeriod.findUnique({ where: { id: absencePeriodId } })
+    ]);
+    const canRespondAsSubstitute =
+      substitution &&
+      substitution.status === "PENDING" &&
+      Boolean(user.teacherId) &&
+      substitution.substituteTeacherId === user.teacherId;
+
+    if (canRespondAsSubstitute && absencePeriod) {
+      if (intent === "reject_substitute") {
+        await prisma.$transaction([
+          prisma.substitution.update({
+            where: { absencePeriodId },
+            data: { status: "REJECTED", approvedById: user.id }
+          }),
+          prisma.absencePeriod.update({
+            where: { id: absencePeriodId },
+            data: { actionType: "NONE", status: "PENDING" }
+          })
+        ]);
+      } else {
+        await prisma.$transaction([
+          prisma.substitution.update({
+            where: { absencePeriodId },
+            data: { status: "APPROVED", approvedById: user.id }
+          }),
+          prisma.absencePeriod.update({
+            where: { id: absencePeriodId },
+            data: { status: "DONE" }
+          }),
+          prisma.temporarySchedule.create({
+            data: {
+              date: substitution.date,
+              originalScheduleId: absencePeriod.scheduleId,
+              teacherId: substitution.substituteTeacherId,
+              period: substitution.period,
+              classRoomId: substitution.classRoomId,
+              subjectId: substitution.subjectId,
+              specialRoomId: substitution.specialRoomId,
+              sourceType: "SUBSTITUTE",
+              sourceId: absencePeriodId
+            }
+          })
+        ]);
+      }
     }
 
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);

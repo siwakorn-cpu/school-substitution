@@ -181,8 +181,8 @@ model AbsencePeriod {
 }
 
 model Substitution {
-  id                  String   @id @default(cuid())
-  absencePeriodId     String   @unique
+  id                  String     @id @default(cuid())
+  absencePeriodId     String     @unique
   originalTeacherId   String
   substituteTeacherId String
   date                DateTime
@@ -191,8 +191,10 @@ model Substitution {
   subjectId           String
   specialRoomId       String?
   assignedById        String
+  status              SwapStatus @default(PENDING)
+  approvedById        String?
   note                String?
-  createdAt           DateTime @default(now())
+  createdAt           DateTime   @default(now())
 
   absencePeriod AbsencePeriod @relation(fields: [absencePeriodId], references: [id])
 }

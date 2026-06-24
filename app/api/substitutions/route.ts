@@ -60,11 +60,14 @@ export async function POST(request: Request) {
       classRoomId: absencePeriod.schedule.classRoomId,
       subjectId: absencePeriod.schedule.subjectId,
       specialRoomId: absencePeriod.schedule.specialRoomId,
-      assignedById: user.id
+      assignedById: user.id,
+      // Sick-leave substitutions are assigned directly by staff — no approval step from the substitute.
+      status: "APPROVED"
     },
     update: {
       substituteTeacherId,
       assignedById: user.id,
+      status: "APPROVED",
       note: null
     }
   });

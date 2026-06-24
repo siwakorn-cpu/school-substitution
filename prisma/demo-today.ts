@@ -89,6 +89,7 @@ async function main() {
     absentCode: string;
     absentPeriod: number;
     substituteCode: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
     note: string;
   }) {
     const { teacher: absentTeacher, schedule } = scheduleFor(opts.absentCode, opts.absentPeriod);
@@ -104,7 +105,7 @@ async function main() {
         scheduleId: schedule.id,
         period: schedule.period,
         actionType: "SUBSTITUTE",
-        status: "DONE"
+        status: opts.status === "APPROVED" ? "DONE" : "PENDING"
       }
     });
     await prisma.substitution.create({
@@ -118,6 +119,8 @@ async function main() {
         subjectId: schedule.subjectId,
         specialRoomId: schedule.specialRoomId,
         assignedById: adminId,
+        status: opts.status,
+        approvedById: opts.status !== "PENDING" ? adminId : null,
         note: opts.note
       }
     });
@@ -133,8 +136,8 @@ async function main() {
     note: "ตัวอย่าง: รออนุมัติสลับคาบ"
   });
   await createSwap({
-    requesterCode: "T006",
-    requesterPeriod: 1,
+    requesterCode: "T004",
+    requesterPeriod: 3,
     targetCode: "T007",
     targetPeriod: 1,
     absenceType: "OFFICIAL",
@@ -144,8 +147,8 @@ async function main() {
   await createSwap({
     requesterCode: "T005",
     requesterPeriod: 3,
-    targetCode: "T004",
-    targetPeriod: 1,
+    targetCode: "T001",
+    targetPeriod: 2,
     absenceType: "PERSONAL",
     status: "REJECTED",
     note: "ตัวอย่าง: ไม่อนุมัติสลับคาบ"
@@ -153,15 +156,17 @@ async function main() {
 
   await createSubstitution({
     absentCode: "T001",
-    absentPeriod: 2,
-    substituteCode: "T002",
-    note: "ตัวอย่างเข้าแทน 1"
+    absentPeriod: 1,
+    substituteCode: "T003",
+    status: "PENDING",
+    note: "ตัวอย่างเข้าแทน 1 (รออนุมัติจากครูเข้าแทน)"
   });
   await createSubstitution({
-    absentCode: "T003",
-    absentPeriod: 2,
-    substituteCode: "T007",
-    note: "ตัวอย่างเข้าแทน 2"
+    absentCode: "T002",
+    absentPeriod: 1,
+    substituteCode: "T006",
+    status: "APPROVED",
+    note: "ตัวอย่างเข้าแทน 2 (อนุมัติแล้ว)"
   });
 
   console.log("สร้างข้อมูลตัวอย่างของวันนี้เรียบร้อย");

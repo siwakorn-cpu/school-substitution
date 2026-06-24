@@ -25,7 +25,7 @@ export default async function DashboardPage() {
       prisma.teacher.count({ where: { status: "ACTIVE" } }),
       prisma.absencePeriod.count({ where: { status: "PENDING" } }),
       prisma.swapRequest.count({ where: { status: "PENDING" } }),
-      prisma.substitution.count({ where: { date: { gte: monthStart, lt: monthEnd } } }),
+      prisma.substitution.count({ where: { date: { gte: monthStart, lt: monthEnd }, status: "APPROVED" } }),
       prisma.user.count({ where: { isActive: false } })
     ]);
     cards.push(
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
       prisma.teacherAbsence.count({ where: { date: today } }),
       prisma.absencePeriod.count({ where: { status: "PENDING", absence: { date: today, type: "LEAVE" } } }),
       prisma.swapRequest.count({ where: { status: "PENDING" } }),
-      prisma.substitution.count({ where: { date: { gte: monthStart, lt: monthEnd } } })
+      prisma.substitution.count({ where: { date: { gte: monthStart, lt: monthEnd }, status: "APPROVED" } })
     ]);
     cards.push(
       { label: "ครูที่ลาวันนี้", value: absentToday, href: "/absences" },

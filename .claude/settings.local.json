@@ -24,7 +24,27 @@
       "Bash(grep -nE '#[0-9a-fA-F]{3,8}|rgba?\\\\\\(' app/globals.css)",
       "Bash(npm install *)",
       "Bash(kill 83155)",
-      "Bash(lsof -i :3000 -sTCP:LISTEN -n -P)"
+      "Bash(lsof -i :3000 -sTCP:LISTEN -n -P)",
+      "Bash(npx --yes prisma --version)",
+      "Bash(sqlite3 prisma/dev.db \".tables\")",
+      "Bash(sqlite3 dev.db \"select count\\(*\\) from Teacher; select count\\(*\\) from TeachingSchedule; select count\\(*\\) from TeacherAbsence; select count\\(*\\) from SwapRequest; select count\\(*\\) from Substitution; select count\\(*\\) from User; select count\\(*\\) from Subject;\")",
+      "Bash(sqlite3 dev.db \"select id,date,toDate,status from SwapRequest;\")",
+      "Bash(sqlite3 dev.db \"select id,date,period from Substitution;\")",
+      "Bash(sqlite3 dev.db \"select id,code,name from Subject;\")",
+      "Bash(sqlite3 prisma/dev.db \"select id,date,toDate,status from SwapRequest;\")",
+      "Bash(sqlite3 prisma/dev.db \"select id,date,period from Substitution;\")",
+      "Bash(sqlite3 prisma/dev.db \"select id,code,name from Subject;\")",
+      "Bash(sqlite3 prisma/dev.db \"select id,teacherId,date,type from TeacherAbsence;\")",
+      "Bash(sqlite3 prisma/dev.db \"select id,absenceId,scheduleId,period,actionType,status from AbsencePeriod;\")",
+      "Bash(sqlite3 prisma/dev.db \"select id,code,name from Teacher;\")",
+      "Bash(sqlite3 prisma/dev.db \"select id,teacherId,dayOfWeek,period,classRoomId,subjectId from TeachingSchedule;\")",
+      "Bash(sqlite3 prisma/dev.db \"select id,name,type from Room;\")",
+      "Bash(ps -p 83003 -o pid,etime,command)",
+      "Bash(kill 83003)",
+      "Bash(python3 -c ' *)",
+      "Bash(git add *)",
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx prisma db push --schema=prisma/schema.local.prisma --skip-generate)",
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx tsx prisma/demo-today.ts)"
     ]
   }
 }
