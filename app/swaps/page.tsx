@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { AppShell } from "@/components/AppShell";
+import { ExportTablePng } from "@/components/ExportTablePng";
 import { requireUser } from "@/lib/auth";
 import { canApproveSwap, canManageSwap } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
@@ -10,7 +11,7 @@ import { getSwapCandidates } from "@/lib/swapCandidates";
 export default async function SwapsPage({
   searchParams
 }: {
-  searchParams: Promise<{ absencePeriodId?: string; edit?: string }>;
+  searchParams: Promise<{ absencePeriodId?: string; edit?: string; viewDate?: string }>;
 }) {
   const user = await requireUser();
   if (!(await canManageSwap(user))) {
@@ -26,8 +27,15 @@ export default async function SwapsPage({
   const isTeacherScoped = user.role === "TEACHER";
   const canApproveScheduleChange = await canApproveSwap(user);
 
+  const selectedViewDate = params.viewDate ?? toDateInputValue();
+  const viewDateStart = parseDateInput(selectedViewDate);
+  const viewDateEnd = new Date(viewDateStart);
+  viewDateEnd.setDate(viewDateEnd.getDate() + 1);
+  const todayHref = `/swaps${absencePeriodId ? `?absencePeriodId=${absencePeriodId}${isEditing ? "&edit=1" : ""}` : ""}`;
+
   const substitutionWhere: Prisma.SubstitutionWhereInput = {
-    absencePeriod: { absence: { type: { in: ["OFFICIAL", "PERSONAL"] } } }
+    absencePeriod: { absence: { type: { in: ["OFFICIAL", "PERSONAL"] } } },
+    date: { gte: viewDateStart, lt: viewDateEnd }
   };
   if (isTeacherScoped) {
     substitutionWhere.OR = [
@@ -54,11 +62,12 @@ export default async function SwapsPage({
       orderBy: [{ absence: { date: "desc" } }, { period: "asc" }]
     }),
     prisma.swapRequest.findMany({
-      where: isTeacherScoped
-        ? {
-            OR: [{ requesterTeacherId: user.teacherId ?? "" }, { targetTeacherId: user.teacherId ?? "" }]
-          }
-        : {},
+      where: {
+        date: { gte: viewDateStart, lt: viewDateEnd },
+        ...(isTeacherScoped
+          ? { OR: [{ requesterTeacherId: user.teacherId ?? "" }, { targetTeacherId: user.teacherId ?? "" }] }
+          : {})
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
@@ -74,7 +83,7 @@ export default async function SwapsPage({
         absencePeriod: {
           include: {
             absence: { include: { teacher: true } },
-            schedule: { include: { classRoom: true, subject: true } }
+            schedule: { include: { classRoom: true, subject: true, specialRoom: true } }
           }
         }
       }
@@ -82,10 +91,133 @@ export default async function SwapsPage({
     prisma.subject.findMany({ orderBy: { name: "asc" } })
   ]);
 
+  const swapScheduleIds = Array.from(new Set(requests.flatMap((request) => [request.fromScheduleId, request.toScheduleId])));
+  const swapSchedules = await prisma.teachingSchedule.findMany({
+    where: { id: { in: swapScheduleIds } },
+    include: { classRoom: true, subject: true, specialRoom: true }
+  });
+  const swapScheduleMap = new Map(swapSchedules.map((schedule) => [schedule.id, schedule]));
+
+  const swapTableRows = requests
+    .map((request) => {
+      const fromSchedule = swapScheduleMap.get(request.fromScheduleId);
+      const toSchedule = swapScheduleMap.get(request.toScheduleId);
+      if (!fromSchedule || !toSchedule) return null;
+      const toDate = request.toDate ?? nextDateForDayOfWeek(request.date, toSchedule.dayOfWeek);
+      const statusLabel =
+        request.status === "APPROVED" ? "อนุมัติแล้ว" : request.status === "REJECTED" ? "ไม่อนุมัติ" : "รออนุมัติ";
+      return {
+        id: request.id,
+        request,
+        classRoomName: fromSchedule.classRoom.name,
+        period: fromSchedule.period,
+        subjectCode: fromSchedule.subject.code ?? "-",
+        subjectName: fromSchedule.subject.name,
+        specialRoomName: fromSchedule.specialRoom?.name ?? "-",
+        toDate,
+        toPeriod: toSchedule.period,
+        toSubjectCode: toSchedule.subject.code ?? "-",
+        toSubjectName: toSchedule.subject.name,
+        toSpecialRoomName: toSchedule.specialRoom?.name ?? "-",
+        statusLabel
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
+
+  const swapExportColumns = [
+    "วันที่ลาหรือราชการ",
+    "ชั้น ม.",
+    "คาบ",
+    "รหัสวิชา",
+    "ชื่อรายวิชา",
+    "ห้อง/อาคาร",
+    "วันที่แลกคาบ/สลับคาบ",
+    "คาบเรียนที่สลับคาบ",
+    "รหัสวิชาที่สลับคาบ",
+    "ชื่อรายวิชาที่สลับคาบ",
+    "ห้อง/อาคารที่สลับคาบ",
+    "ครูที่รับแลกคาบ",
+    "การอนุมัติ"
+  ];
+  const swapExportRows = swapTableRows.map((row) => [
+    formatThaiDate(row.request.date),
+    row.classRoomName,
+    String(row.period),
+    row.subjectCode,
+    row.subjectName,
+    row.specialRoomName,
+    formatThaiDate(row.toDate),
+    String(row.toPeriod),
+    row.toSubjectCode,
+    row.toSubjectName,
+    row.toSpecialRoomName,
+    row.request.targetTeacher.name,
+    row.statusLabel
+  ]);
+
   const substituteTeachers = await prisma.teacher.findMany({
     where: { id: { in: substitutionRecords.map((item) => item.substituteTeacherId) } }
   });
   const substituteTeacherMap = new Map(substituteTeachers.map((teacher) => [teacher.id, teacher]));
+
+  const substitutionSubjectIds = Array.from(new Set(substitutionRecords.map((record) => record.subjectId)));
+  const substitutionSpecialRoomIds = Array.from(
+    new Set(substitutionRecords.map((record) => record.specialRoomId).filter((id): id is string => Boolean(id)))
+  );
+  const [substitutionSubjects, substitutionSpecialRooms] = await Promise.all([
+    prisma.subject.findMany({ where: { id: { in: substitutionSubjectIds } } }),
+    prisma.room.findMany({ where: { id: { in: substitutionSpecialRoomIds } } })
+  ]);
+  const substitutionSubjectMap = new Map(substitutionSubjects.map((subject) => [subject.id, subject]));
+  const substitutionSpecialRoomMap = new Map(substitutionSpecialRooms.map((room) => [room.id, room]));
+
+  const substitutionTableRows = substitutionRecords.map((record) => {
+    const originalSubject = record.absencePeriod.schedule.subject;
+    const originalSpecialRoom = record.absencePeriod.schedule.specialRoom;
+    const substituteSubject = substitutionSubjectMap.get(record.subjectId);
+    const substituteSpecialRoom = record.specialRoomId ? substitutionSpecialRoomMap.get(record.specialRoomId) : null;
+    return {
+      id: record.id,
+      record,
+      classRoomName: record.absencePeriod.schedule.classRoom.name,
+      originalSubjectCode: originalSubject.code ?? "-",
+      originalSubjectName: originalSubject.name,
+      originalSpecialRoomName: originalSpecialRoom?.name ?? "-",
+      substituteSubjectCode: substituteSubject?.code ?? "-",
+      substituteSubjectName: substituteSubject?.name ?? "-",
+      substituteSpecialRoomName: substituteSpecialRoom?.name ?? "-",
+      substituteTeacherName: substituteTeacherMap.get(record.substituteTeacherId)?.name ?? "ไม่พบข้อมูลครู"
+    };
+  });
+
+  const substitutionExportColumns = [
+    "วันที่ลาหรือราชการ",
+    "ชั้น ม.",
+    "คาบ",
+    "รหัสวิชาเดิม",
+    "ชื่อรายวิชาเดิม",
+    "ห้อง/อาคารเดิม",
+    "รหัสวิชาที่สอนแทน",
+    "ชื่อรายวิชาที่สอนแทน",
+    "ห้อง/อาคารที่สอนแทน",
+    "ครูต้นทาง",
+    "ครูเข้าแทน",
+    "หมายเหตุ"
+  ];
+  const substitutionExportRows = substitutionTableRows.map((row) => [
+    formatThaiDate(row.record.date),
+    row.classRoomName,
+    String(row.record.period),
+    row.originalSubjectCode,
+    row.originalSubjectName,
+    row.originalSpecialRoomName,
+    row.substituteSubjectCode,
+    row.substituteSubjectName,
+    row.substituteSpecialRoomName,
+    row.record.absencePeriod.absence.teacher.name,
+    row.substituteTeacherName,
+    row.record.note || "-"
+  ]);
 
   const selected = absencePeriodId
     ? await prisma.absencePeriod.findUnique({
@@ -407,116 +539,188 @@ export default async function SwapsPage({
           )}
         </div>
 
+        <div className="card view-date-card">
+          <form className="view-date-form" method="get">
+            {absencePeriodId ? <input type="hidden" name="absencePeriodId" value={absencePeriodId} /> : null}
+            {isEditing ? <input type="hidden" name="edit" value="1" /> : null}
+            <label>
+              แสดงข้อมูลวันที่:
+              <input type="date" name="viewDate" defaultValue={selectedViewDate} />
+            </label>
+            <button className="btn primary" type="submit">
+              แสดง
+            </button>
+            <a className="btn" href={todayHref}>
+              วันนี้
+            </a>
+          </form>
+        </div>
+
         <div className="card card-resolved">
           <h2>รายการแลกคาบ (สลับคาบ)</h2>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>วันที่</th>
-                  <th>ครูต้นทาง</th>
-                  <th>ครูปลายทาง</th>
-                  <th>สถานะ</th>
-                  <th>หมายเหตุ</th>
-                  <th>จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((request) => (
-                  <tr key={request.id}>
-                    <td>{formatThaiDate(request.date)}</td>
-                    <td className="no-glossary">{request.requesterTeacher.name}</td>
-                    <td className="no-glossary">{request.targetTeacher.name}</td>
-                    <td>
-                      <span className={`badge ${request.status === "APPROVED" ? "success" : request.status === "REJECTED" ? "danger" : "warning"}`}>
-                        {request.status === "APPROVED" ? "อนุมัติ" : request.status === "REJECTED" ? "ไม่อนุมัติ" : "รออนุมัติ"}
-                      </span>
-                      {request.splitDoublePeriod ? <span className="badge warning">แตกคาบคู่</span> : null}
-                    </td>
-                    <td>{request.note || "-"}</td>
-                    <td>
-                      {canApproveScheduleChange || user.teacherId === request.targetTeacherId ? (
-                        <div className="actions">
-                          {request.status !== "APPROVED" ? (
-                            <form action="/api/swaps" method="post">
-                              <input type="hidden" name="intent" value="approve" />
-                              <input type="hidden" name="id" value={request.id} />
-                              <button className="btn primary" type="submit">
-                                อนุมัติ
-                              </button>
-                            </form>
-                          ) : null}
-                          {request.status !== "REJECTED" ? (
-                            <form action="/api/swaps" method="post">
-                              <input type="hidden" name="intent" value="reject" />
-                              <input type="hidden" name="id" value={request.id} />
-                              <button className="btn danger" type="submit">
-                                ไม่อนุมัติ
-                              </button>
-                            </form>
-                          ) : null}
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
+          {swapTableRows.length === 0 ? (
+            <p className="muted">ไม่มีรายการในวันที่เลือก</p>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>วันที่ลาหรือราชการ</th>
+                    <th>ชั้น ม.</th>
+                    <th>คาบ</th>
+                    <th>รหัสวิชา</th>
+                    <th>ชื่อรายวิชา</th>
+                    <th>ห้อง/อาคาร</th>
+                    <th>วันที่แลกคาบ/สลับคาบ</th>
+                    <th>คาบเรียนที่สลับคาบ</th>
+                    <th>รหัสวิชาที่สลับคาบ</th>
+                    <th>ชื่อรายวิชาที่สลับคาบ</th>
+                    <th>ห้อง/อาคารที่สลับคาบ</th>
+                    <th>ครูที่รับแลกคาบ</th>
+                    <th>การอนุมัติ</th>
+                    <th>จัดการ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {swapTableRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{formatThaiDate(row.request.date)}</td>
+                      <td>{row.classRoomName}</td>
+                      <td>{row.period}</td>
+                      <td>{row.subjectCode}</td>
+                      <td>{row.subjectName}</td>
+                      <td>{row.specialRoomName}</td>
+                      <td>{formatThaiDate(row.toDate)}</td>
+                      <td>{row.toPeriod}</td>
+                      <td>{row.toSubjectCode}</td>
+                      <td>{row.toSubjectName}</td>
+                      <td>{row.toSpecialRoomName}</td>
+                      <td className="no-glossary">{row.request.targetTeacher.name}</td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            row.request.status === "APPROVED"
+                              ? "success"
+                              : row.request.status === "REJECTED"
+                                ? "danger"
+                                : "warning"
+                          }`}
+                        >
+                          {row.statusLabel}
+                        </span>
+                        {row.request.splitDoublePeriod ? <span className="badge warning">แตกคาบคู่</span> : null}
+                      </td>
+                      <td>
+                        {canApproveScheduleChange || user.teacherId === row.request.targetTeacherId ? (
+                          <div className="actions">
+                            {row.request.status !== "APPROVED" ? (
+                              <form action="/api/swaps" method="post">
+                                <input type="hidden" name="intent" value="approve" />
+                                <input type="hidden" name="id" value={row.request.id} />
+                                <button className="btn primary" type="submit">
+                                  อนุมัติ
+                                </button>
+                              </form>
+                            ) : null}
+                            {row.request.status !== "REJECTED" ? (
+                              <form action="/api/swaps" method="post">
+                                <input type="hidden" name="intent" value="reject" />
+                                <input type="hidden" name="id" value={row.request.id} />
+                                <button className="btn danger" type="submit">
+                                  ไม่อนุมัติ
+                                </button>
+                              </form>
+                            ) : null}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <ExportTablePng
+            title="รายการแลกคาบ (สลับคาบ)"
+            dateLabel={`วันที่ลาหรือราชการ: ${formatThaiDate(viewDateStart)}`}
+            columns={swapExportColumns}
+            rows={swapExportRows}
+            filename={`swap_periods_${selectedViewDate}.png`}
+          />
         </div>
 
         <div className="card card-resolved">
           <h2>รายการเข้าแทน</h2>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>วันที่</th>
-                  <th>ครูต้นทาง</th>
-                  <th>ครูเข้าแทน</th>
-                  <th>คาบ/วิชา</th>
-                  <th>หมายเหตุ</th>
-                  <th>จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {substitutionRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td>{formatThaiDate(record.date)}</td>
-                    <td className="no-glossary">{record.absencePeriod.absence.teacher.name}</td>
-                    <td className="no-glossary">
-                      {substituteTeacherMap.get(record.substituteTeacherId)?.name ?? "ไม่พบข้อมูลครู"}
-                    </td>
-                    <td>
-                      คาบ {record.period} · {record.absencePeriod.schedule.classRoom.name} ·{" "}
-                      {record.absencePeriod.schedule.subject.name}
-                    </td>
-                    <td>{record.note || "-"}</td>
-                    <td>
-                      {canApproveScheduleChange ? (
-                        <div className="actions">
-                          <a className="btn" href={`/swaps?absencePeriodId=${record.absencePeriodId}&edit=1`}>
-                            แก้ไข
-                          </a>
-                          <form action="/api/swaps" method="post">
-                            <input type="hidden" name="intent" value="cancel_substitute" />
-                            <input type="hidden" name="absencePeriodId" value={record.absencePeriodId} />
-                            <button className="btn danger" type="submit">
-                              ยกเลิก
-                            </button>
-                          </form>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
+          {substitutionTableRows.length === 0 ? (
+            <p className="muted">ไม่มีรายการในวันที่เลือก</p>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>วันที่ลาหรือราชการ</th>
+                    <th>ชั้น ม.</th>
+                    <th>คาบ</th>
+                    <th>รหัสวิชาเดิม</th>
+                    <th>ชื่อรายวิชาเดิม</th>
+                    <th>ห้อง/อาคารเดิม</th>
+                    <th>รหัสวิชาที่สอนแทน</th>
+                    <th>ชื่อรายวิชาที่สอนแทน</th>
+                    <th>ห้อง/อาคารที่สอนแทน</th>
+                    <th>ครูต้นทาง</th>
+                    <th>ครูเข้าแทน</th>
+                    <th>หมายเหตุ</th>
+                    <th>จัดการ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {substitutionTableRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{formatThaiDate(row.record.date)}</td>
+                      <td>{row.classRoomName}</td>
+                      <td>{row.record.period}</td>
+                      <td>{row.originalSubjectCode}</td>
+                      <td>{row.originalSubjectName}</td>
+                      <td>{row.originalSpecialRoomName}</td>
+                      <td>{row.substituteSubjectCode}</td>
+                      <td>{row.substituteSubjectName}</td>
+                      <td>{row.substituteSpecialRoomName}</td>
+                      <td className="no-glossary">{row.record.absencePeriod.absence.teacher.name}</td>
+                      <td className="no-glossary">{row.substituteTeacherName}</td>
+                      <td>{row.record.note || "-"}</td>
+                      <td>
+                        {canApproveScheduleChange ? (
+                          <div className="actions">
+                            <a className="btn" href={`/swaps?absencePeriodId=${row.record.absencePeriodId}&edit=1`}>
+                              แก้ไข
+                            </a>
+                            <form action="/api/swaps" method="post">
+                              <input type="hidden" name="intent" value="cancel_substitute" />
+                              <input type="hidden" name="absencePeriodId" value={row.record.absencePeriodId} />
+                              <button className="btn danger" type="submit">
+                                ยกเลิก
+                              </button>
+                            </form>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <ExportTablePng
+            title="รายการเข้าแทน"
+            dateLabel={`วันที่: ${formatThaiDate(viewDateStart)}`}
+            columns={substitutionExportColumns}
+            rows={substitutionExportRows}
+            filename={`substitute_${selectedViewDate}.png`}
+          />
         </div>
       </section>
       </div>

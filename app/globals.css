@@ -513,6 +513,83 @@ a.stat:hover {
   color: #14672f;
 }
 
+.view-date-card {
+  display: flex;
+}
+
+.view-date-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+
+.view-date-form label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.export-png-wrap {
+  margin-top: 10px;
+}
+
+.export-a4-offscreen {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+}
+
+.export-a4-card {
+  width: 1123px;
+  height: 794px;
+  padding: 28px 32px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: "Sarabun", "TH Sarabun New", "Noto Sans Thai", Arial, sans-serif;
+  overflow: hidden;
+}
+
+.export-a4-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.export-a4-head strong {
+  font-size: 22px;
+  color: var(--primary-dark);
+}
+
+.export-a4-head span {
+  font-size: 15px;
+  color: #475467;
+}
+
+.export-a4-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.export-a4-table th,
+.export-a4-table td {
+  border: 1px solid #cbd5e1;
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.export-a4-table th {
+  background: var(--primary);
+  color: #ffffff;
+  font-weight: 700;
+}
+
 .form {
   display: grid;
   gap: 12px;
