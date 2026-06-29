@@ -46,7 +46,12 @@
       "Bash(DATABASE_URL=\"file:./dev.db\" npx prisma db push --schema=prisma/schema.local.prisma --skip-generate)",
       "Bash(DATABASE_URL=\"file:./dev.db\" npx tsx prisma/demo-today.ts)",
       "Bash(awk 'NR==313,NR==490' app/swaps/page.tsx)",
-      "Bash(grep -n '^        </div>$' app/swaps/page.tsx)"
+      "Bash(grep -n '^        </div>$' app/swaps/page.tsx)",
+      "Read(//Users/siwbook/Documents/GitHub/**)",
+      "Read(//Users/siwbook/Documents/school-substitution/**)",
+      "Read(//Users/siwbook/Documents/Codex/**)",
+      "Bash(node test.cjs)",
+      "Bash(node test2.cjs)"
     ]
   }
 }

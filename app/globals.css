@@ -544,7 +544,7 @@ a.stat:hover {
 .view-date-form {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: flex-end;
   gap: 12px;
 }
 
