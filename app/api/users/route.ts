@@ -1,6 +1,7 @@
 import { hashPassword, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirectTo } from "@/lib/redirect";
+import { logActivity } from "@/lib/auditLog";
 
 export async function POST(request: Request) {
   const currentUser = await requireAdmin();
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     const teacherId = normalizeTeacherId(formData.get("teacherId"));
 
     if (username && password.length >= 6) {
-      await prisma.user.create({
+      const created = await prisma.user.create({
         data: {
           username,
           passwordHash: await hashPassword(password),
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
           teacherId
         }
       });
+      await logActivity(currentUser, "create", "User", created.id, `เพิ่มผู้ใช้: ${username}`);
     }
   }
 
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
     const isSelf = id === currentUser.id;
     const isActive = String(formData.get("isActive") ?? "true") === "true";
 
-    await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id },
       data: {
         role: normalizeRole(formData.get("role")),
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
         ...(password.length >= 6 ? { passwordHash: await hashPassword(password) } : {})
       }
     });
+    await logActivity(currentUser, "update", "User", id, `แก้ไขผู้ใช้: ${updated.username}`);
   }
 
   if (intent === "delete") {
@@ -48,7 +51,8 @@ export async function POST(request: Request) {
     if (id === currentUser.id) return redirectWithError("ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่");
 
     try {
-      await prisma.user.delete({ where: { id } });
+      const deleted = await prisma.user.delete({ where: { id } });
+      await logActivity(currentUser, "delete", "User", id, `ลบผู้ใช้: ${deleted.username}`);
     } catch {
       return redirectWithError("ลบผู้ใช้ไม่สำเร็จ");
     }

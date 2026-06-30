@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/auditLog";
 
 type Mode = "replace" | "merge";
 
@@ -88,7 +89,7 @@ function normalizeRows(collection: Collection, rows: unknown): Record<string, un
 }
 
 export async function POST(request: Request) {
-  await requireAdmin();
+  const user = await requireAdmin();
 
   const formData = await request.formData();
   const file = formData.get("file");
@@ -158,6 +159,13 @@ export async function POST(request: Request) {
     );
 
     const total = Object.values(result).reduce((sum, count) => sum + count, 0);
+    await logActivity(
+      user,
+      "restore_backup",
+      "System",
+      null,
+      `กู้คืนข้อมูลจากไฟล์สำรอง (${mode === "replace" ? "แทนที่ทั้งหมด" : "เติมส่วนที่ขาด"}) ${total} รายการ`
+    );
     return Response.json({
       ok: true,
       message:

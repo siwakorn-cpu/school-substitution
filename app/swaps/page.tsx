@@ -488,13 +488,13 @@ export default async function SwapsPage({
                               <td>
                                 {item.splitDoublePeriod ? <span className="badge warning">แตกคาบคู่</span> : null}
                                 {item.warnings.length > 0 ? (
-                                  <ul className="compact-list">
+                                  <ul className="compact-list warning-text">
                                     {item.warnings.map((warning) => (
                                       <li key={warning}>{warning}</li>
                                     ))}
                                   </ul>
                                 ) : (
-                                  <span className="muted">ผ่านเงื่อนไข</span>
+                                  <span className="muted warning-text">ผ่านเงื่อนไข</span>
                                 )}
                               </td>
                               <td>
@@ -563,11 +563,10 @@ export default async function SwapsPage({
                                 <td>{item.departmentName}</td>
                                 <td>{item.score}</td>
                                 <td>
-                                  {[...item.reasons, ...item.warnings].join(", ")}
+                                  <span className="warning-text">{[...item.reasons, ...item.warnings].join(", ")}</span>
                                   <br />
-                                  <span className="muted">
-                                    ผลลัพธ์: {formatThaiDate(selected.absence.date)} คาบ {selected.period}{" "}
-                                    {selected.schedule.classRoom.name} {selected.schedule.subject.name} ครู{" "}
+                                  <span className="muted warning-text">
+                                    {selected.schedule.classRoom.name} {selected.schedule.subject.name} →{" "}
                                     <span className="no-glossary">{item.teacherName}</span>
                                   </span>
                                 </td>

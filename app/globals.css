@@ -1758,6 +1758,13 @@ button:disabled {
   padding-left: 18px;
 }
 
+.warning-text {
+  font-size: 10px;
+  font-weight: 300;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;

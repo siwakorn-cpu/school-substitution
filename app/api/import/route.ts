@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { importSchedules, parseScheduleFile } from "@/lib/importSchedules";
 import { canImportSchedule } from "@/lib/rbac";
 import { redirectTo } from "@/lib/redirect";
+import { logActivity } from "@/lib/auditLog";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     return redirectTo(request, "/data-upload/schedules?error=ไฟล์ไม่ถูกต้องหรือไม่รองรับ");
   }
   const result = await importSchedules(rows, term);
+  await logActivity(user, "import", "TeachingSchedule", null, `นำเข้าตารางสอนเทอม ${term} จำนวน ${result.imported} รายการ`);
 
   if (result.errors.length > 0) {
     const message = encodeURIComponent(result.errors.slice(0, 8).join(" | "));

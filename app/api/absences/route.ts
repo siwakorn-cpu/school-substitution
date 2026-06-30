@@ -1,8 +1,9 @@
 import { requireUser } from "@/lib/auth";
 import { canManageAbsence, canRecordOwnAbsence } from "@/lib/rbac";
-import { parseDateInput } from "@/lib/date";
+import { parseDateInput, formatThaiDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { redirectTo } from "@/lib/redirect";
+import { logActivity } from "@/lib/auditLog";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -37,6 +38,13 @@ export async function POST(request: Request) {
         prisma.absencePeriod.deleteMany({ where: { absenceId } }),
         prisma.teacherAbsence.delete({ where: { id: absenceId } })
       ]);
+      await logActivity(
+        user,
+        "delete",
+        "TeacherAbsence",
+        absenceId,
+        `ลบรายการลา/ไปราชการ วันที่ ${formatThaiDate(absence.date)}`
+      );
       return redirectTo(request, "/absences");
     }
 
@@ -54,6 +62,13 @@ export async function POST(request: Request) {
       where: { id: absenceId },
       data: { type: newType, note }
     });
+    await logActivity(
+      user,
+      "update",
+      "TeacherAbsence",
+      absenceId,
+      `แก้ไขรายการลา/ไปราชการ วันที่ ${formatThaiDate(absence.date)}`
+    );
     return redirectTo(request, "/absences");
   }
 
@@ -99,6 +114,13 @@ export async function POST(request: Request) {
       }
     });
 
+    await logActivity(
+      user,
+      "create",
+      "TeacherAbsence",
+      null,
+      `บันทึกลา/ไปราชการแบบกลุ่ม ${teacherIds.length} คน วันที่ ${formatThaiDate(date)}`
+    );
     return redirectTo(request, "/absences");
   }
 
@@ -137,6 +159,7 @@ export async function POST(request: Request) {
     });
   }
 
+  await logActivity(user, "create", "TeacherAbsence", absence.id, `บันทึกลา/ไปราชการ วันที่ ${formatThaiDate(date)}`);
   return redirectTo(request, "/absences");
 }
 

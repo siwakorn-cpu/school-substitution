@@ -1,11 +1,12 @@
 import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/auditLog";
 
 type ResetMode = "usage_only" | "schedules_only" | "usage_and_schedules" | "master_data_too";
 
 export async function POST(request: Request) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const body = await request.json().catch(() => null);
   const mode = normalizeMode(body?.mode);
   const backupConfirmed = body?.backupConfirmed === true;
@@ -60,6 +61,8 @@ export async function POST(request: Request) {
       levelMeetings: levelMeetings.count
     };
   });
+
+  await logActivity(user, "system_reset", "System", null, `เริ่มต้นระบบใหม่: ${modeLabel(mode)}`);
 
   return Response.json({
     ok: true,

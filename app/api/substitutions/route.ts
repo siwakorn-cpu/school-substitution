@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { canManageSubstitution } from "@/lib/rbac";
 import { validateSubstitute } from "@/lib/recommendSubstitutes";
 import { redirectTo } from "@/lib/redirect";
-import { parseDateInput, toDateInputValue } from "@/lib/date";
+import { parseDateInput, toDateInputValue, formatThaiDate } from "@/lib/date";
 import { getDepartmentScopeId, roleUsesDepartmentScope } from "@/lib/departmentScope";
+import { logActivity } from "@/lib/auditLog";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -76,6 +77,15 @@ export async function POST(request: Request) {
     where: { id: absencePeriodId },
     data: { actionType: "SUBSTITUTE", status: "DONE" }
   });
+
+  const substituteTeacher = await prisma.teacher.findUnique({ where: { id: substituteTeacherId } });
+  await logActivity(
+    user,
+    "assign_substitute",
+    "Substitution",
+    absencePeriodId,
+    `จัดครูสอนแทน: ${absencePeriod.absence.teacher.name} -> ${substituteTeacher?.name ?? substituteTeacherId} (${formatThaiDate(absencePeriod.absence.date)} คาบ ${absencePeriod.period})`
+  );
 
   return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
 }

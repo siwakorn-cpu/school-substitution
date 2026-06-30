@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { importTeachers, parseTeacherFile } from "@/lib/importTeachers";
 import { canManageTeacher } from "@/lib/rbac";
 import { redirectTo } from "@/lib/redirect";
+import { logActivity } from "@/lib/auditLog";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     return redirectTo(request, "/data-upload/teachers?teacherError=ไฟล์รายชื่อครูไม่ถูกต้องหรือไม่รองรับ");
   }
   const result = await importTeachers(rows);
+  await logActivity(user, "import", "Teacher", null, `นำเข้ารายชื่อครู ${result.imported} รายการ`);
 
   if (result.errors.length > 0) {
     const message = encodeURIComponent(result.errors.slice(0, 8).join(" | "));

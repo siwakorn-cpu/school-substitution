@@ -268,3 +268,18 @@ model TemporarySchedule {
   sourceId           String
   createdAt          DateTime                @default(now())
 }
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  username   String
+  role       Role
+  action     String
+  targetType String
+  targetId   String?
+  summary    String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}

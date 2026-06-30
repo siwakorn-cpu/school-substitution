@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/auditLog";
 
 type StartMode = "copy_schedule" | "blank_schedule";
 
@@ -79,6 +80,14 @@ export async function POST(request: Request) {
 
       return { createdSchedules };
     });
+
+    await logActivity(
+      user,
+      "start_new_term",
+      "SchoolTerm",
+      null,
+      `เริ่มภาคเรียนใหม่: ${newTerm} (${mode === "copy_schedule" ? `คัดลอกจาก ${sourceTerm}` : "ตารางว่าง"})`
+    );
 
     return Response.json({
       ok: true,

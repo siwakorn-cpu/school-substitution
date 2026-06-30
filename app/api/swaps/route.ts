@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { validateSubstitute } from "@/lib/recommendSubstitutes";
 import { validateSwapCandidate } from "@/lib/swapCandidates";
 import { redirectTo } from "@/lib/redirect";
-import { parseDateInput, toDateInputValue } from "@/lib/date";
+import { parseDateInput, toDateInputValue, formatThaiDate } from "@/lib/date";
+import { logActivity } from "@/lib/auditLog";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -72,6 +73,14 @@ export async function POST(request: Request) {
           data: { actionType: "SUBSTITUTE", status: "PENDING" }
         })
       ]);
+      const substituteTeacher = await prisma.teacher.findUnique({ where: { id: substituteTeacherId } });
+      await logActivity(
+        user,
+        "request_substitute",
+        "Substitution",
+        absencePeriodId,
+        `ขอให้เข้าสอนแทน: ${substituteTeacher?.name ?? substituteTeacherId} (${formatThaiDate(absencePeriod.absence.date)} คาบ ${absencePeriod.period})`
+      );
     }
 
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
@@ -101,6 +110,7 @@ export async function POST(request: Request) {
             data: { actionType: "NONE", status: "PENDING" }
           })
         ]);
+        await logActivity(user, "reject_substitute", "Substitution", absencePeriodId, "ปฏิเสธคำขอเข้าสอนแทน");
       } else {
         await prisma.$transaction([
           prisma.substitution.update({
@@ -125,6 +135,7 @@ export async function POST(request: Request) {
             }
           })
         ]);
+        await logActivity(user, "approve_substitute", "Substitution", absencePeriodId, "อนุมัติคำขอเข้าสอนแทน");
       }
     }
 
@@ -197,6 +208,15 @@ export async function POST(request: Request) {
         where: { id: absencePeriodId },
         data: { actionType: "SWAP" }
       });
+
+      const targetTeacher = await prisma.teacher.findUnique({ where: { id: target.teacherId } });
+      await logActivity(
+        user,
+        existingPending ? "update_swap_request" : "create_swap_request",
+        "SwapRequest",
+        absencePeriodId,
+        `ส่งคำขอสลับคาบกับ ${targetTeacher?.name ?? target.teacherId} (${formatThaiDate(absencePeriod.absence.date)})`
+      );
     }
 
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
@@ -219,6 +239,7 @@ export async function POST(request: Request) {
           data: { actionType: "NONE" }
         });
       }
+      await logActivity(user, "cancel_swap_request", "SwapRequest", id, "ยกเลิกคำขอสลับคาบ");
     }
 
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
@@ -236,6 +257,7 @@ export async function POST(request: Request) {
           data: { actionType: "NONE", status: "PENDING" }
         })
       ]);
+      await logActivity(user, "cancel_substitute", "Substitution", absencePeriodId, "ยกเลิกการจัดเข้าสอนแทน");
     }
 
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
@@ -257,6 +279,7 @@ export async function POST(request: Request) {
           data: { status: "REJECTED", approvedById: user.id }
         })
       ]);
+      await logActivity(user, "reject_swap_request", "SwapRequest", id, "ไม่อนุมัติคำขอสลับคาบ");
     } else {
       const swap = await prisma.swapRequest.findUnique({ where: { id } });
       if (swap) {
@@ -301,6 +324,7 @@ export async function POST(request: Request) {
               }
             })
           ]);
+          await logActivity(user, "approve_swap_request", "SwapRequest", id, "อนุมัติคำขอสลับคาบ");
         }
       }
     }

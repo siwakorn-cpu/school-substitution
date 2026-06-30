@@ -50,6 +50,13 @@ const settingsLinks = [
     titleEn: "Subject settings",
     description: "กำหนดรายวิชาที่ต้องจัดสอนแทน หรือไม่ต้องสร้างรายการสอนแทน",
     descriptionEn: "Choose which subjects require substitution records"
+  },
+  {
+    href: "/settings/audit-log",
+    title: "ประวัติการใช้งาน",
+    titleEn: "Activity log",
+    description: "ดูว่ามีการเพิ่ม/แก้ไข/ลบข้อมูลอะไรบ้าง โดยใคร และเมื่อไหร่",
+    descriptionEn: "See what data was added, changed, or deleted, by whom, and when"
   }
 ];
 

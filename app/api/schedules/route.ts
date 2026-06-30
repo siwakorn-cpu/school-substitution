@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canImportSchedule } from "@/lib/rbac";
 import { redirectTo } from "@/lib/redirect";
+import { logActivity } from "@/lib/auditLog";
 
 function redirectBack(request: NextRequest, formData: FormData, key: "scheduleMessage" | "scheduleError", message: string) {
   const params = new URLSearchParams({
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await prisma.teachingSchedule.delete({ where: { id } });
+      await logActivity(user, "delete", "TeachingSchedule", id, "ลบคาบสอน");
       return redirectBack(request, formData, "scheduleMessage", "ลบคาบสอนเรียบร้อยแล้ว");
     } catch {
       return redirectBack(
@@ -112,13 +114,27 @@ export async function POST(request: NextRequest) {
   if (error) return redirectBack(request, formData, "scheduleError", error);
 
   if (intent === "create") {
-    await prisma.teachingSchedule.create({ data });
+    const created = await prisma.teachingSchedule.create({ data });
+    await logActivity(
+      user,
+      "create",
+      "TeachingSchedule",
+      created.id,
+      `เพิ่มคาบสอน วัน ${data.dayOfWeek} คาบ ${data.period} เทอม ${data.term}`
+    );
     return redirectBack(request, formData, "scheduleMessage", "เพิ่มคาบสอนเรียบร้อยแล้ว");
   }
 
   if (intent === "update") {
     if (!id) return redirectBack(request, formData, "scheduleError", "ไม่พบรายการตารางสอนที่ต้องการแก้ไข");
     await prisma.teachingSchedule.update({ where: { id }, data });
+    await logActivity(
+      user,
+      "update",
+      "TeachingSchedule",
+      id,
+      `แก้ไขคาบสอน วัน ${data.dayOfWeek} คาบ ${data.period} เทอม ${data.term}`
+    );
     return redirectBack(request, formData, "scheduleMessage", "บันทึกการแก้ไขตารางสอนเรียบร้อยแล้ว");
   }
 
