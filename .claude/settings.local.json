@@ -51,7 +51,8 @@
       "Read(//Users/siwbook/Documents/school-substitution/**)",
       "Read(//Users/siwbook/Documents/Codex/**)",
       "Bash(node test.cjs)",
-      "Bash(node test2.cjs)"
+      "Bash(node test2.cjs)",
+      "Bash(npm create *)"
     ]
   }
 }

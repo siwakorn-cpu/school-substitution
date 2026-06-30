@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { formatThaiDate, nextDateForDayOfWeek, parseDateInput, thaiDays, toDateInputValue } from "@/lib/date";
 import { recommendSubstitutes } from "@/lib/recommendSubstitutes";
 import { getSwapCandidates } from "@/lib/swapCandidates";
+import { TableTeacherSearch } from "@/components/TableTeacherSearch";
+import { TeacherHoverSchedule, hoverWeekDays } from "@/components/TeacherHoverSchedule";
 
 export default async function SwapsPage({
   searchParams
@@ -243,6 +245,26 @@ export default async function SwapsPage({
     ? await Promise.all([getSwapCandidates(selected.id), recommendSubstitutes(selected.id)])
     : [[], []];
 
+  const candidateTeacherIds = Array.from(
+    new Set([
+      ...swapCandidates.map((item) => item.teacher.id),
+      ...substituteCandidates.map((item) => item.teacherId)
+    ])
+  );
+  const candidateSchedules = candidateTeacherIds.length
+    ? await prisma.teachingSchedule.findMany({
+        where: {
+          teacherId: { in: candidateTeacherIds },
+          dayOfWeek: { in: hoverWeekDays.map((day) => day.dayOfWeek) }
+        },
+        include: { classRoom: true, subject: true, specialRoom: true },
+        orderBy: [{ teacherId: "asc" }, { dayOfWeek: "asc" }, { period: "asc" }]
+      })
+    : [];
+  const candidateScheduleMap = new Map(
+    candidateSchedules.map((schedule) => [`${schedule.teacherId}:${schedule.dayOfWeek}:${schedule.period}`, schedule])
+  );
+
   const activeSubstitution =
     selected?.substitution && selected.substitution.status !== "REJECTED" ? selected.substitution : null;
   const hasResolution = Boolean(activeSubstitution || existingSwapRequest);
@@ -404,7 +426,7 @@ export default async function SwapsPage({
               ) : null}
 
               {selected && !canActOnSelected && !hasResolution ? (
-                <p className="badge warning">คาบย้อนหลัง — ดำเนินการได้เฉพาะผู้ดูแลระบบ</p>
+                <p className="badge warning">คาบย้อนหลังไม่สามารถดำเนินการได้</p>
               ) : null}
 
               {showCandidates ? (
@@ -422,7 +444,8 @@ export default async function SwapsPage({
                     <p className="muted">
                       สลับได้เฉพาะคาบของห้องเรียน/กลุ่มห้องเดียวกันเท่านั้น ระบบตรวจครูไม่สอนซ้อน ห้องเรียนไม่ซ้อน และห้อง/อาคารไม่ชน
                     </p>
-                    <div className="table-wrap">
+                    <TableTeacherSearch targetId="swap-candidate-table" />
+                    <div className="table-wrap" id="swap-candidate-table">
                       <table className="swap-table">
                         <thead>
                           <tr>
@@ -436,11 +459,17 @@ export default async function SwapsPage({
                         </thead>
                         <tbody>
                           {swapCandidates.map((item) => (
-                            <tr key={item.id}>
+                            <tr key={item.id} data-teacher-name={item.teacher.name}>
                               <td>
                                 {thaiDays[item.dayOfWeek]} คาบ {item.period}
                               </td>
-                              <td className="no-glossary">{item.teacher.name}</td>
+                              <td>
+                                <TeacherHoverSchedule
+                                  name={item.teacher.name}
+                                  teacherId={item.teacher.id}
+                                  scheduleMap={candidateScheduleMap}
+                                />
+                              </td>
                               <td>
                                 {item.classRoom.name} · {item.subject.name}
                                 {item.specialRoom ? ` · ${item.specialRoom.name}` : ""}
@@ -508,7 +537,9 @@ export default async function SwapsPage({
                       ใช้วันเดิม คาบเดิม ห้องเดิม และรายวิชาเดิม เปลี่ยนเฉพาะครูผู้สอน โดยครูเข้าแทนต้องว่างในคาบนี้
                     </p>
                     {canApproveScheduleChange ? (
-                      <div className="table-wrap">
+                      <>
+                      <TableTeacherSearch targetId="substitute-candidate-table" />
+                      <div className="table-wrap" id="substitute-candidate-table">
                         <table className="swap-table">
                           <thead>
                             <tr>
@@ -521,8 +552,14 @@ export default async function SwapsPage({
                           </thead>
                           <tbody>
                             {substituteCandidates.map((item) => (
-                              <tr key={item.teacherId}>
-                                <td className="no-glossary">{item.teacherName}</td>
+                              <tr key={item.teacherId} data-teacher-name={item.teacherName}>
+                                <td>
+                                  <TeacherHoverSchedule
+                                    name={item.teacherName}
+                                    teacherId={item.teacherId}
+                                    scheduleMap={candidateScheduleMap}
+                                  />
+                                </td>
                                 <td>{item.departmentName}</td>
                                 <td>{item.score}</td>
                                 <td>
@@ -561,6 +598,7 @@ export default async function SwapsPage({
                           </tbody>
                         </table>
                       </div>
+                      </>
                     ) : (
                       <p className="muted">การบันทึกเข้าแทนต้องให้ผู้ดูแลหรือหัวหน้าที่มีสิทธิ์อนุมัติเป็นผู้ดำเนินการ</p>
                     )}

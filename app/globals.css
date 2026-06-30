@@ -1827,6 +1827,16 @@ button:disabled {
   margin: 0;
 }
 
+.table-search-input {
+  width: 100%;
+  max-width: 260px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 13px;
+}
+
 .teacher-name-hover {
   position: relative;
   display: inline-block;
@@ -1848,47 +1858,48 @@ button:disabled {
   top: calc(100% + 6px);
   left: 0;
   display: none;
-  width: min(640px, calc(100vw - 56px));
+  width: min(420px, calc(100vw - 56px));
   border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 7px;
+  border-radius: 6px;
+  padding: 5px;
   background: #fff;
   box-shadow: 0 14px 34px rgba(16, 24, 40, 0.16);
+  font-size: 10px;
 }
 
 .teacher-name-hover:hover .teacher-hover-schedule,
 .teacher-name-hover:focus-within .teacher-hover-schedule {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .teacher-hover-table {
   min-width: 0;
   table-layout: fixed;
-  font-size: 9px;
+  font-size: 7px;
 }
 
 .teacher-hover-table th,
 .teacher-hover-table td {
-  padding: 3px 2px;
+  padding: 2px 1px;
   text-align: center;
   vertical-align: top;
 }
 
 .teacher-hover-table th:first-child,
 .teacher-hover-table td:first-child {
-  width: 36px;
+  width: 26px;
 }
 
 .teacher-hover-table td span,
 .teacher-hover-table td small {
   display: block;
-  line-height: 1.25;
+  line-height: 1.15;
 }
 
 .teacher-hover-table td small {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 6px;
 }
 
 .share-block {
