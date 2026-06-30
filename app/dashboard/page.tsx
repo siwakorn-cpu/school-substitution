@@ -2,10 +2,14 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatThaiDate, toDateInputValue } from "@/lib/date";
+import { formatThaiDate, thaiDays, toDateInputValue } from "@/lib/date";
 import { roleLabel } from "@/lib/permissions";
 import { getDepartmentScopeId, roleUsesDepartmentScope } from "@/lib/departmentScope";
+import { getTermOptions } from "@/lib/terms";
 import { ShareSubstitutionImage, type ShareSubstitutionData } from "@/components/ShareSubstitutionImage";
+
+const scheduleWeekdays = [1, 2, 3, 4, 5];
+const schedulePeriods = Array.from({ length: 10 }, (_, index) => index + 1);
 
 type StatCard = { label: string; value: number; href?: string; highlight?: boolean };
 
@@ -112,6 +116,18 @@ export default async function DashboardPage() {
       ])
     : [[], null];
 
+  const { currentTerm } = await getTermOptions();
+  const mySchedules = user.teacherId
+    ? await prisma.teachingSchedule.findMany({
+        where: { teacherId: user.teacherId, term: currentTerm },
+        include: { classRoom: true, subject: true, specialRoom: true },
+        orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }]
+      })
+    : [];
+  const scheduleByDayPeriod = new Map(
+    mySchedules.map((schedule) => [`${schedule.dayOfWeek}-${schedule.period}`, schedule])
+  );
+
   const myName = myTeacher ? `${myTeacher.code} - ${myTeacher.name}` : "";
   const mySubstitutionItems: ShareSubstitutionData[] = mySubstitutions.map((item) => ({
     date: formatThaiDate(item.absencePeriod.absence.date),
@@ -156,6 +172,55 @@ export default async function DashboardPage() {
             </div>
           );
         })}
+
+        {user.teacherId ? (
+          <div className="card span-12">
+            <h2>ตารางสอนของฉัน</h2>
+            <p className="muted">ภาคเรียน {currentTerm}</p>
+            {mySchedules.length === 0 ? (
+              <p className="muted">ยังไม่มีตารางสอนในภาคเรียนนี้</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="weekly-schedule-table mini-schedule-table">
+                  <thead>
+                    <tr>
+                      <th>วัน</th>
+                      {schedulePeriods.map((period) => (
+                        <th key={period}>{period}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scheduleWeekdays.map((dayIndex) => (
+                      <tr key={dayIndex}>
+                        <th>{thaiDays[dayIndex]}</th>
+                        {schedulePeriods.map((period) => {
+                          const schedule = scheduleByDayPeriod.get(`${dayIndex}-${period}`);
+                          return (
+                            <td key={period}>
+                              {schedule ? (
+                                <div className="mini-schedule-cell">
+                                  <strong>
+                                    {schedule.subject.code ? `${schedule.subject.code} ` : ""}
+                                    {schedule.subject.name}
+                                  </strong>
+                                  <span>{schedule.classRoom.name}</span>
+                                  {schedule.specialRoom ? <span>{schedule.specialRoom.name}</span> : null}
+                                </div>
+                              ) : (
+                                <span className="muted">-</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {user.teacherId ? (
           <div className="card span-12">

@@ -888,6 +888,49 @@ table {
   line-height: 1.2;
 }
 
+.mini-schedule-table {
+  min-width: 620px;
+  font-size: 10px;
+}
+
+.mini-schedule-table th,
+.mini-schedule-table td {
+  padding: 2px;
+}
+
+.mini-schedule-table th:first-child,
+.mini-schedule-table td:first-child {
+  width: 52px;
+}
+
+.mini-schedule-table th:not(:first-child),
+.mini-schedule-table td:not(:first-child) {
+  width: 56px;
+}
+
+.mini-schedule-cell {
+  display: grid;
+  gap: 1px;
+  min-height: 34px;
+  border: 1px solid var(--primary-border);
+  border-radius: 5px;
+  padding: 3px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  text-align: left;
+}
+
+.mini-schedule-cell strong {
+  font-size: 9px;
+  line-height: 1.15;
+}
+
+.mini-schedule-cell span {
+  color: #475467;
+  font-size: 8px;
+  line-height: 1.15;
+}
+
 .schedule-cell-activity {
   display: grid;
   gap: 2px;
