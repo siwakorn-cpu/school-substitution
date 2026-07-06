@@ -125,7 +125,7 @@ export function ShareSubstitutionImage({
                 <td>{item.originalTeacher}</td>
                 <td>{item.specialRoom || "-"}</td>
                 <td>{item.substituteTeacher}</td>
-                <td>{item.note || "-"}</td>
+                <td className={item.note ? "share-card-note-cell" : undefined}>{item.note || "-"}</td>
               </tr>
             ))}
           </tbody>
