@@ -6,6 +6,7 @@ import { redirectTo } from "@/lib/redirect";
 import { parseDateInput, toDateInputValue, formatThaiDate } from "@/lib/date";
 import { getDepartmentScopeId, roleUsesDepartmentScope } from "@/lib/departmentScope";
 import { logActivity } from "@/lib/auditLog";
+import { FIELD_TRIP_NOTE } from "@/lib/substitutionNotes";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -13,17 +14,11 @@ export async function POST(request: Request) {
     return redirectTo(request, "/dashboard");
   }
   const formData = await request.formData();
+  const intent = String(formData.get("intent") ?? "assign");
   const absencePeriodId = String(formData.get("absencePeriodId") ?? "");
   const substituteTeacherId = String(formData.get("substituteTeacherId") ?? "");
   const usesDepartmentScope = roleUsesDepartmentScope(user);
   const departmentScopeId = await getDepartmentScopeId(user);
-
-  const valid = await validateSubstitute(absencePeriodId, substituteTeacherId, {
-    departmentId: usesDepartmentScope ? departmentScopeId : null
-  });
-  if (!valid) {
-    return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
-  }
 
   const absencePeriod = await prisma.absencePeriod.findUnique({
     where: { id: absencePeriodId },
@@ -47,6 +42,34 @@ export async function POST(request: Request) {
 
   const today = parseDateInput(toDateInputValue());
   if (absencePeriod.absence.date < today && user.role !== "ADMIN") {
+    return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
+  }
+
+  if (intent === "field_trip") {
+    await prisma.$transaction([
+      prisma.temporarySchedule.deleteMany({ where: { sourceType: "SUBSTITUTE", sourceId: absencePeriodId } }),
+      prisma.substitution.deleteMany({ where: { absencePeriodId } }),
+      prisma.absencePeriod.update({
+        where: { id: absencePeriodId },
+        data: { actionType: "NONE", status: "DONE", note: FIELD_TRIP_NOTE }
+      })
+    ]);
+
+    await logActivity(
+      user,
+      "mark_field_trip",
+      "AbsencePeriod",
+      absencePeriodId,
+      `${FIELD_TRIP_NOTE}: ${absencePeriod.absence.teacher.name} (${formatThaiDate(absencePeriod.absence.date)} คาบ ${absencePeriod.period})`
+    );
+
+    return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
+  }
+
+  const valid = await validateSubstitute(absencePeriodId, substituteTeacherId, {
+    departmentId: null
+  });
+  if (!valid) {
     return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
   }
 
@@ -75,7 +98,7 @@ export async function POST(request: Request) {
 
   await prisma.absencePeriod.update({
     where: { id: absencePeriodId },
-    data: { actionType: "SUBSTITUTE", status: "DONE" }
+    data: { actionType: "SUBSTITUTE", status: "DONE", note: null }
   });
 
   const substituteTeacher = await prisma.teacher.findUnique({ where: { id: substituteTeacherId } });

@@ -9,6 +9,7 @@ import { recommendSubstitutes } from "@/lib/recommendSubstitutes";
 import { getDepartmentScopeId, roleUsesDepartmentScope } from "@/lib/departmentScope";
 import { ShareSubstitutionImage } from "@/components/ShareSubstitutionImage";
 import type { ShareSubstitutionData } from "@/components/ShareSubstitutionImage";
+import { FIELD_TRIP_NOTE } from "@/lib/substitutionNotes";
 
 const hoverWeekDays = [
   { dayOfWeek: 1, label: "จันทร์" },
@@ -28,6 +29,7 @@ export default async function SubstitutionsPage({
     sortDate?: string;
     dateScope?: string;
     departmentId?: string;
+    subDept?: string;
     printStartDate?: string;
     printEndDate?: string;
     printTeacherId?: string;
@@ -100,6 +102,18 @@ export default async function SubstitutionsPage({
     },
     orderBy: [{ absence: { date: sortDate } }, { period: "asc" }],
     take: 50
+  });
+
+  // Sort by date first (latest first by default, per the selector); within the same
+  // date, "รอจัด" (not yet DONE) comes above "เสร็จแล้ว" (DONE).
+  pendingPeriods.sort((a, b) => {
+    const aTime = a.absence.date.getTime();
+    const bTime = b.absence.date.getTime();
+    if (aTime !== bTime) return sortDate === "asc" ? aTime - bTime : bTime - aTime;
+    const aDone = a.status === "DONE" ? 1 : 0;
+    const bDone = b.status === "DONE" ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone;
+    return a.period - b.period;
   });
 
   const selectedWhere: Prisma.AbsencePeriodWhereInput = {
@@ -177,7 +191,7 @@ export default async function SubstitutionsPage({
         orderBy: [{ absence: { date: "asc" } }, { absence: { teacher: { code: "asc" } } }, { period: "asc" }]
       })
     : [];
-  const sharePeriods = requiredSharePeriods.filter((period) => isSubstitutionComplete(period));
+  const sharePeriods = requiredSharePeriods.filter((period) => isSubstitutionComplete(period) || isFieldTripPeriod(period));
   const substituteTeachers =
     sharePeriods.length > 0
       ? await prisma.teacher.findMany({
@@ -197,7 +211,8 @@ export default async function SubstitutionsPage({
       const substituteTeacher = period.substitution
         ? substituteTeacherMap.get(period.substitution.substituteTeacherId)
         : null;
-      if (!substituteTeacher) return null;
+      const isFieldTrip = isFieldTripPeriod(period);
+      if (!substituteTeacher && !isFieldTrip) return null;
 
       return {
         date: formatThaiDate(period.absence.date),
@@ -205,9 +220,11 @@ export default async function SubstitutionsPage({
         classRoom: period.schedule.classRoom.name,
         subject: period.schedule.subject.name,
         originalTeacher: `${period.absence.teacher.name} (${period.absence.teacher.department.name})`,
-        substituteTeacher: `${substituteTeacher.code} - ${substituteTeacher.name} (${substituteTeacher.department.name})`,
+        substituteTeacher: substituteTeacher
+          ? `${substituteTeacher.code} - ${substituteTeacher.name} (${substituteTeacher.department.name})`
+          : "ไม่ต้องจัดครูสอนแทน",
         specialRoom: period.schedule.specialRoom?.name ?? null,
-        note: period.substitution?.note ?? null
+        note: period.note ?? period.substitution?.note ?? null
       };
     })
     .filter((item): item is ShareSubstitutionData => Boolean(item));
@@ -224,16 +241,30 @@ export default async function SubstitutionsPage({
     ? requiredSharePeriods.filter((period) => period.absence.teacher.departmentId === selectedPrintDepartment.id)
     : [];
   const selectedTeacherComplete =
-    selectedTeacherPeriods.length > 0 && selectedTeacherPeriods.every((period) => isSubstitutionComplete(period));
+    selectedTeacherPeriods.length > 0 &&
+    selectedTeacherPeriods.every((period) => isSubstitutionComplete(period) || isFieldTripPeriod(period));
   const selectedDepartmentComplete =
-    selectedDepartmentPeriods.length > 0 && selectedDepartmentPeriods.every((period) => isSubstitutionComplete(period));
+    selectedDepartmentPeriods.length > 0 &&
+    selectedDepartmentPeriods.every((period) => isSubstitutionComplete(period) || isFieldTripPeriod(period));
   const printRangeLabel =
     printStartDateValue === printEndDateValue
       ? formatThaiDate(printStartDate)
       : `${formatThaiDate(printStartDate)} - ${formatThaiDate(printEndDate)}`;
+  // All departments are selectable as the substitute's group, so an assigner can
+  // reach teachers outside the absent teacher's (or their own) department.
+  const allDepartments = await prisma.department.findMany({ orderBy: { name: "asc" } });
+  const defaultSubDept = usesDepartmentScope ? departmentScopeId ?? "all" : "all";
+  const substituteDeptId =
+    params.subDept === "all"
+      ? "all"
+      : allDepartments.some((department) => department.id === params.subDept)
+      ? params.subDept ?? "all"
+      : defaultSubDept;
   const recommendations =
     selected && canAssignSubstitution
-      ? await recommendSubstitutes(selected.id, { departmentId: usesDepartmentScope ? departmentScopeId : null })
+      ? await recommendSubstitutes(selected.id, {
+          departmentId: substituteDeptId && substituteDeptId !== "all" ? substituteDeptId : null
+        })
       : [];
   const recommendationSchedules =
     recommendations.length > 0
@@ -329,7 +360,7 @@ export default async function SubstitutionsPage({
                     <td>{period.period}</td>
                     <td>
                       <span className={`badge ${period.status === "DONE" ? "success" : "warning"}`}>
-                        {period.status === "DONE" ? "เสร็จแล้ว" : "รอจัด"}
+                        {isFieldTripPeriod(period) ? "ทัศนศึกษา" : period.status === "DONE" ? "เสร็จแล้ว" : "รอจัด"}
                       </span>
                     </td>
                   </tr>
@@ -355,7 +386,30 @@ export default async function SubstitutionsPage({
                 {selected.schedule.specialRoom ? ` · ห้อง/อาคาร: ${selected.schedule.specialRoom.name}` : ""}
               </p>
 
-              {selected.substitution && !shouldEditSelectedSubstitution ? (
+              {isFieldTripPeriod(selected) && !shouldEditSelectedSubstitution ? (
+                <div className="recommendation-list">
+                  <div className="recommendation-item">
+                    <div className="recommendation-main">
+                      <strong>ไม่ต้องจัดครูสอนแทน</strong>
+                      <p className="muted">หมายเหตุ: {FIELD_TRIP_NOTE}</p>
+                    </div>
+                    {canEditSelectedSubstitution ? (
+                      <a
+                        className="btn primary"
+                        href={`/substitutions?${new URLSearchParams({
+                          ...Object.fromEntries(listQuery),
+                          absencePeriodId: selected.id,
+                          edit: "1"
+                        }).toString()}`}
+                      >
+                        แก้ไขการจัดสอนแทน
+                      </a>
+                    ) : selectedIsPast ? (
+                      <span className="badge warning">ย้อนหลังแก้ไขได้เฉพาะผู้ดูแลระบบ</span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : selected.substitution && !shouldEditSelectedSubstitution ? (
                 <div className="recommendation-list">
                   <div className="recommendation-item">
                     <div className="recommendation-main">
@@ -397,9 +451,47 @@ export default async function SubstitutionsPage({
                 </div>
               ) : !canAssignSubstitution ? (
                 <p className="muted">บัญชีครูดูรายการของตนเองได้ แต่จัดครูแทนไม่ได้</p>
-              ) : recommendations.length === 0 ? (
-                <p className="error">ยังไม่พบครูที่ผ่านเงื่อนไขในคาบนี้</p>
               ) : (
+                <>
+                  <div className="recommendation-list">
+                    <div className="recommendation-item">
+                      <div className="recommendation-main">
+                        <strong>นักเรียนไปทัศนศึกษา</strong>
+                        <p className="muted">เลือกตัวเลือกนี้เมื่อคาบนี้ไม่ต้องมีครูเข้าแทน</p>
+                      </div>
+                      <form action="/api/substitutions" method="post">
+                        <input type="hidden" name="intent" value="field_trip" />
+                        <input type="hidden" name="absencePeriodId" value={selected.id} />
+                        <button className="btn" type="submit">
+                          บันทึกว่า{FIELD_TRIP_NOTE}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                  <form className="compact-form" method="get">
+                    <input type="hidden" name="absencePeriodId" value={selected.id} />
+                    {isEditing ? <input type="hidden" name="edit" value="1" /> : null}
+                    <input type="hidden" name="sortDate" value={sortDate} />
+                    <input type="hidden" name="dateScope" value={dateScope} />
+                    <input type="hidden" name="departmentId" value={selectedDepartmentId} />
+                    <label>
+                      ครูสอนแทนจากกลุ่มสาระ
+                      <select name="subDept" defaultValue={substituteDeptId}>
+                        <option value="all">ทุกกลุ่มสาระ</option>
+                        {allDepartments.map((department) => (
+                          <option key={department.id} value={department.id}>
+                            {department.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="btn" type="submit">
+                      กรองครูสอนแทน
+                    </button>
+                  </form>
+                  {recommendations.length === 0 ? (
+                    <p className="error">ยังไม่พบครูที่ผ่านเงื่อนไขในกลุ่มสาระที่เลือก ลองเลือกกลุ่มสาระอื่น</p>
+                  ) : (
                 <div className="recommendation-list">
                   {selected.substitution && shouldEditSelectedSubstitution ? (
                     <div className="actions">
@@ -483,6 +575,8 @@ export default async function SubstitutionsPage({
                     </div>
                   ))}
                 </div>
+              )}
+                </>
               )}
             </>
           )}
@@ -573,4 +667,12 @@ function isSubstitutionComplete(period: {
   substitution: unknown | null;
 }) {
   return period.status === "DONE" && period.actionType === "SUBSTITUTE" && Boolean(period.substitution);
+}
+
+function isFieldTripPeriod(period: {
+  status: string;
+  actionType: string;
+  note?: string | null;
+}) {
+  return period.status === "DONE" && period.actionType === "NONE" && period.note === FIELD_TRIP_NOTE;
 }

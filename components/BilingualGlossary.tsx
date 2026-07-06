@@ -198,6 +198,7 @@ const GLOSSARY: [string, string][] = [
   ["วิชา", "Subject"],
   ["เลือก", "Select"],
   ["บันทึก", "Save"],
+  ["ลบครู", "Delete"],
   ["ลบ", "Delete"],
   ["แก้ไข", "Edit"],
   ["เพิ่มผู้ใช้", "Add user"],

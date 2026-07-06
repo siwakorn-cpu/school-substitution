@@ -46,5 +46,35 @@ export async function POST(request: Request) {
     await logActivity(user, "deactivate", "Teacher", id, `ปิดการใช้งานครู: ${teacher.name}`);
   }
 
+  if (intent === "delete") {
+    const id = String(formData.get("id") ?? "");
+    const teacher = await prisma.teacher.findUnique({ where: { id } });
+    if (!teacher) {
+      return redirectTo(request, "/data-upload/teachers");
+    }
+
+    // Block when the teacher still has linked records — deleting would fail on FK
+    // or orphan history. Tell the admin to use ปิดใช้งาน instead.
+    const [scheduleCount, absenceCount, swapCount] = await Promise.all([
+      prisma.teachingSchedule.count({ where: { teacherId: id } }),
+      prisma.teacherAbsence.count({ where: { teacherId: id } }),
+      prisma.swapRequest.count({
+        where: { OR: [{ requesterTeacherId: id }, { targetTeacherId: id }] }
+      })
+    ]);
+
+    if (scheduleCount > 0 || absenceCount > 0 || swapCount > 0) {
+      const message = encodeURIComponent(
+        `ลบครู ${teacher.name} ไม่ได้ เพราะยังมีตารางสอน/การลา/แลกคาบที่อ้างอิงอยู่ กรุณาเปลี่ยนสถานะเป็นปิดใช้งานแทน`
+      );
+      return redirectTo(request, `/data-upload/teachers?teacherError=${message}`);
+    }
+
+    // Detach a linked user account (teacherId is a nullable FK) before deleting.
+    await prisma.user.updateMany({ where: { teacherId: id }, data: { teacherId: null } });
+    await prisma.teacher.delete({ where: { id } });
+    await logActivity(user, "delete", "Teacher", id, `ลบครู: ${teacher.name}`);
+  }
+
   return redirectTo(request, "/data-upload/teachers");
 }

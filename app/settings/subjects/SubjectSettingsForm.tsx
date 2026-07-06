@@ -30,6 +30,7 @@ export function SubjectSettingsForm({ subjects }: { subjects: SubjectRow[] }) {
 
   return (
     <form className="form" action="/api/subjects" method="post">
+      <input type="hidden" name="intent" value="save_settings" />
       <div className="subject-search">
         <label>
           ค้นหารายวิชา

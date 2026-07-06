@@ -240,6 +240,7 @@ export default async function DashboardPage() {
                         <th>ครูเดิม</th>
                         <th>ห้อง/อาคาร</th>
                         <th>ครูสอนแทน</th>
+                        <th>หมายเหตุ</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -252,6 +253,7 @@ export default async function DashboardPage() {
                           <td className="no-glossary">{item.originalTeacher}</td>
                           <td>{item.specialRoom || "-"}</td>
                           <td className="no-glossary">{item.substituteTeacher}</td>
+                          <td>{item.note || "-"}</td>
                         </tr>
                       ))}
                     </tbody>

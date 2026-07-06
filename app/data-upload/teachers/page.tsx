@@ -2,6 +2,7 @@ import { AppShell } from "@/components/AppShell";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canManageTeacher } from "@/lib/rbac";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 
 export default async function TeacherDataPage({
   searchParams
@@ -208,11 +209,14 @@ export default async function TeacherDataPage({
                           </form>
                         </details>
                         <form action="/api/teachers" method="post">
-                          <input type="hidden" name="intent" value="remove" />
+                          <input type="hidden" name="intent" value="delete" />
                           <input type="hidden" name="id" value={teacher.id} />
-                          <button className="btn danger" type="submit">
-                            เอาออก
-                          </button>
+                          <ConfirmSubmitButton
+                            className="btn danger"
+                            message={`ยืนยันการลบครู ${teacher.name}? การลบไม่สามารถย้อนกลับได้`}
+                          >
+                            ลบครู
+                          </ConfirmSubmitButton>
                         </form>
                       </div>
                     </td>

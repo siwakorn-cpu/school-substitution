@@ -173,6 +173,7 @@ model AbsencePeriod {
   period     Int
   actionType AbsencePeriodAction @default(NONE)
   status     WorkStatus          @default(PENDING)
+  note       String?
 
   absence      TeacherAbsence   @relation(fields: [absenceId], references: [id])
   schedule     TeachingSchedule @relation(fields: [scheduleId], references: [id])

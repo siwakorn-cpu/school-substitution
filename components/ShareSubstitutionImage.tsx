@@ -112,6 +112,7 @@ export function ShareSubstitutionImage({
               <th>ครูเดิม</th>
               <th>ห้อง/อาคาร</th>
               <th>ครูสอนแทน</th>
+              <th>หมายเหตุ</th>
             </tr>
           </thead>
           <tbody>
@@ -124,6 +125,7 @@ export function ShareSubstitutionImage({
                 <td>{item.originalTeacher}</td>
                 <td>{item.specialRoom || "-"}</td>
                 <td>{item.substituteTeacher}</td>
+                <td>{item.note || "-"}</td>
               </tr>
             ))}
           </tbody>
