@@ -158,7 +158,13 @@ export default async function SwapsPage({
   ]);
 
   const substituteTeachers = await prisma.teacher.findMany({
-    where: { id: { in: substitutionRecords.map((item) => item.substituteTeacherId) } }
+    where: {
+      id: {
+        in: substitutionRecords
+          .map((item) => item.substituteTeacherId)
+          .filter((teacherId): teacherId is string => Boolean(teacherId))
+      }
+    }
   });
   const substituteTeacherMap = new Map(substituteTeachers.map((teacher) => [teacher.id, teacher]));
 
@@ -190,7 +196,9 @@ export default async function SwapsPage({
       substituteSubjectCode: substituteSubject?.code ?? "-",
       substituteSubjectName: substituteSubject?.name ?? "-",
       substituteSpecialRoomName: substituteSpecialRoom?.name ?? "-",
-      substituteTeacherName: substituteTeacherMap.get(record.substituteTeacherId)?.name ?? "ไม่พบข้อมูลครู",
+      substituteTeacherName: record.externalSubstituteName
+        ? `นิสิต/นักศึกษาฝึกประสบการณ์: ${record.externalSubstituteName}`
+        : substituteTeacherMap.get(record.substituteTeacherId ?? "")?.name ?? "ไม่พบข้อมูลครู",
       statusLabel
     };
   });
@@ -279,6 +287,7 @@ export default async function SwapsPage({
   const canRespondAsSubstitute =
     activeSubstitution?.status === "PENDING" &&
     Boolean(user.teacherId) &&
+    Boolean(activeSubstitution.substituteTeacherId) &&
     activeSubstitution.substituteTeacherId === user.teacherId;
   const today = parseDateInput(toDateInputValue());
   const selectedIsPast = selected ? selected.absence.date < today : false;
@@ -349,10 +358,12 @@ export default async function SwapsPage({
                         <>
                           <strong>{activeSubstitution.status === "APPROVED" ? "เข้าแทนแล้ว" : "รออนุมัติจากครูเข้าแทน"}</strong>
                           <p className="muted">
-                            ครูเข้าแทน:{" "}
+                            ผู้เข้าแทน:{" "}
                             <span className="no-glossary">
-                              {substituteTeacherMap.get(activeSubstitution.substituteTeacherId)?.name ??
-                                "ไม่พบข้อมูลครู"}
+                              {activeSubstitution.externalSubstituteName
+                                ? `นิสิต/นักศึกษาฝึกประสบการณ์: ${activeSubstitution.externalSubstituteName}`
+                                : substituteTeacherMap.get(activeSubstitution.substituteTeacherId ?? "")?.name ??
+                                  "ไม่พบข้อมูลครู"}
                             </span>
                           </p>
                           <span className={`badge ${activeSubstitution.status === "APPROVED" ? "success" : "warning"}`}>
@@ -597,6 +608,36 @@ export default async function SwapsPage({
                           </tbody>
                         </table>
                       </div>
+                      <div className="recommendation-item">
+                        <div className="recommendation-main">
+                          <strong>นิสิตนักศึกษาฝึกประสบการณ์วิชาชีพเข้าแทน</strong>
+                          <p className="muted">ใช้กรณีมีนิสิต/นักศึกษาฝึกประสบการณ์รับผิดชอบคาบนี้แทนครู</p>
+                        </div>
+                        <form className="form" action="/api/swaps" method="post">
+                          <input type="hidden" name="intent" value="external_substitute" />
+                          <input type="hidden" name="absencePeriodId" value={selected.id} />
+                          <select name="subjectId" defaultValue={selected.schedule.subjectId} aria-label="รายวิชา">
+                            {subjects.map((subject) => (
+                              <option key={subject.id} value={subject.id}>
+                                {subject.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            name="externalSubstituteName"
+                            placeholder="ชื่อนิสิต/นักศึกษา"
+                            required
+                          />
+                          <input
+                            name="reason"
+                            placeholder="เหตุผล/หมายเหตุ"
+                            defaultValue={selected.substitution?.note ?? selected.absence.note ?? ""}
+                          />
+                          <button className="btn primary" type="submit">
+                            ยืนยันเข้าแทน
+                          </button>
+                        </form>
+                      </div>
                       </>
                     ) : (
                       <p className="muted">การบันทึกเข้าแทนต้องให้ผู้ดูแลหรือหัวหน้าที่มีสิทธิ์อนุมัติเป็นผู้ดำเนินการ</p>
@@ -748,6 +789,7 @@ export default async function SwapsPage({
                   {substitutionTableRows.map((row) => {
                     const canRespondToThisRow =
                       row.record.status === "PENDING" &&
+                      Boolean(row.record.substituteTeacherId) &&
                       Boolean(user.teacherId) &&
                       row.record.substituteTeacherId === user.teacherId;
                     return (

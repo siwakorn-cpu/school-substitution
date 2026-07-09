@@ -185,7 +185,8 @@ model Substitution {
   id                  String     @id @default(cuid())
   absencePeriodId     String     @unique
   originalTeacherId   String
-  substituteTeacherId String
+  substituteTeacherId String?
+  externalSubstituteName String?
   date                DateTime
   period              Int
   classRoomId         String

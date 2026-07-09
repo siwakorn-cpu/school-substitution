@@ -50,6 +50,7 @@ export async function POST(request: Request) {
             absencePeriodId,
             originalTeacherId: absencePeriod.absence.teacherId,
             substituteTeacherId,
+            externalSubstituteName: null,
             date: absencePeriod.absence.date,
             period: absencePeriod.period,
             classRoomId: absencePeriod.schedule.classRoomId,
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
           },
           update: {
             substituteTeacherId,
+            externalSubstituteName: null,
             assignedById: user.id,
             status: "PENDING",
             approvedById: null,
@@ -86,6 +88,75 @@ export async function POST(request: Request) {
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
   }
 
+  if (intent === "external_substitute") {
+    const absencePeriodId = String(formData.get("absencePeriodId") ?? "");
+    const requestedSubjectId = String(formData.get("subjectId") ?? "");
+    const externalSubstituteName = String(formData.get("externalSubstituteName") ?? "").trim();
+    const reason = String(formData.get("reason") ?? "").trim();
+
+    if (!(await canApproveScheduleChange(user)) || !externalSubstituteName) {
+      return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+    }
+
+    const absencePeriod = await prisma.absencePeriod.findUnique({
+      where: { id: absencePeriodId },
+      include: { absence: true, schedule: true }
+    });
+
+    const today = parseDateInput(toDateInputValue());
+    if (!absencePeriod || (absencePeriod.absence.date < today && user.role !== "ADMIN")) {
+      return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+    }
+
+    const subject = requestedSubjectId ? await prisma.subject.findUnique({ where: { id: requestedSubjectId } }) : null;
+    const subjectId = subject?.id ?? absencePeriod.schedule.subjectId;
+    const note = reason || "นิสิตนักศึกษาฝึกประสบการณ์วิชาชีพเข้าแทน";
+
+    await prisma.$transaction([
+      prisma.substitution.upsert({
+        where: { absencePeriodId },
+        create: {
+          absencePeriodId,
+          originalTeacherId: absencePeriod.absence.teacherId,
+          substituteTeacherId: null,
+          externalSubstituteName,
+          date: absencePeriod.absence.date,
+          period: absencePeriod.period,
+          classRoomId: absencePeriod.schedule.classRoomId,
+          subjectId,
+          specialRoomId: absencePeriod.schedule.specialRoomId,
+          assignedById: user.id,
+          status: "APPROVED",
+          approvedById: user.id,
+          note
+        },
+        update: {
+          substituteTeacherId: null,
+          externalSubstituteName,
+          assignedById: user.id,
+          status: "APPROVED",
+          approvedById: user.id,
+          subjectId,
+          note
+        }
+      }),
+      prisma.absencePeriod.update({
+        where: { id: absencePeriodId },
+        data: { actionType: "SUBSTITUTE", status: "DONE" }
+      })
+    ]);
+
+    await logActivity(
+      user,
+      "external_substitute",
+      "Substitution",
+      absencePeriodId,
+      `นิสิตนักศึกษาฝึกประสบการณ์วิชาชีพเข้าแทน: ${externalSubstituteName} (${formatThaiDate(absencePeriod.absence.date)} คาบ ${absencePeriod.period})`
+    );
+
+    return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+  }
+
   if (intent === "approve_substitute" || intent === "reject_substitute") {
     const absencePeriodId = String(formData.get("absencePeriodId") ?? "");
     const [substitution, absencePeriod] = await Promise.all([
@@ -95,10 +166,16 @@ export async function POST(request: Request) {
     const canRespondAsSubstitute =
       substitution &&
       substitution.status === "PENDING" &&
+      Boolean(substitution.substituteTeacherId) &&
       Boolean(user.teacherId) &&
       substitution.substituteTeacherId === user.teacherId;
 
     if (canRespondAsSubstitute && absencePeriod) {
+      const substituteTeacherId = substitution.substituteTeacherId;
+      if (!substituteTeacherId) {
+        return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+      }
+
       if (intent === "reject_substitute") {
         await prisma.$transaction([
           prisma.substitution.update({
@@ -125,7 +202,7 @@ export async function POST(request: Request) {
             data: {
               date: substitution.date,
               originalScheduleId: absencePeriod.scheduleId,
-              teacherId: substitution.substituteTeacherId,
+              teacherId: substituteTeacherId,
               period: substitution.period,
               classRoomId: substitution.classRoomId,
               subjectId: substitution.subjectId,

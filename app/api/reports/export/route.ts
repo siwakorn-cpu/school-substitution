@@ -72,7 +72,12 @@ export async function GET(request: Request) {
     ["วันที่ลา", "ชื่อครูที่ลา", "คาบ", "รหัสวิชา", "วิชา", "ห้อง ม.", "ห้องเรียน", "ชื่อครูที่สอนแทน"],
     ...substitutionDetails.map((item) => {
       const schedule = item.absencePeriod.schedule;
-      const substituteTeacher = substituteTeacherMap.get(item.substituteTeacherId);
+      const substituteTeacher = item.substituteTeacherId ? substituteTeacherMap.get(item.substituteTeacherId) : null;
+      const substituteName = item.externalSubstituteName
+        ? `นิสิต/นักศึกษาฝึกประสบการณ์: ${item.externalSubstituteName}`
+        : substituteTeacher
+          ? `${substituteTeacher.code} - ${substituteTeacher.name}`
+          : "-";
 
       return [
         formatThaiDate(item.absencePeriod.absence.date),
@@ -82,7 +87,7 @@ export async function GET(request: Request) {
         schedule.subject.name,
         schedule.classRoom.name,
         schedule.specialRoom?.name ?? schedule.classRoom.name,
-        substituteTeacher ? `${substituteTeacher.code} - ${substituteTeacher.name}` : "-"
+        substituteName
       ];
     })
   ];

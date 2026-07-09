@@ -267,7 +267,14 @@ export default async function ReportsPage({
                 ) : (
                   substitutionDetails.map((item) => {
                     const schedule = item.absencePeriod.schedule;
-                    const substituteTeacher = substituteTeacherMap.get(item.substituteTeacherId);
+                    const substituteTeacher = item.substituteTeacherId
+                      ? substituteTeacherMap.get(item.substituteTeacherId)
+                      : null;
+                    const substituteName = item.externalSubstituteName
+                      ? `นิสิต/นักศึกษาฝึกประสบการณ์: ${item.externalSubstituteName}`
+                      : substituteTeacher
+                        ? `${substituteTeacher.code} - ${substituteTeacher.name}`
+                        : "-";
 
                     return (
                       <tr key={item.id}>
@@ -279,9 +286,7 @@ export default async function ReportsPage({
                         <td>{schedule.classRoom.name}</td>
                         <td>{schedule.specialRoom?.name ?? schedule.classRoom.name}</td>
                         <td className="no-glossary">
-                          {substituteTeacher
-                            ? `${substituteTeacher.code} - ${substituteTeacher.name}`
-                            : "-"}
+                          {substituteName}
                         </td>
                         {isAdmin ? (
                           <td className="no-glossary">{assignedByMap.get(item.assignedById) ?? "ไม่ทราบ"}</td>

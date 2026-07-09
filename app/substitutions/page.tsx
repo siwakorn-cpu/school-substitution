@@ -133,7 +133,7 @@ export default async function SubstitutionsPage({
         }
       })
     : null;
-  const currentSubstitute = selected?.substitution
+  const currentSubstitute = selected?.substitution?.substituteTeacherId
     ? await prisma.teacher.findUnique({
         where: { id: selected.substitution.substituteTeacherId },
         include: { department: true }
@@ -209,7 +209,7 @@ export default async function SubstitutionsPage({
   const shareItemsForDay = sharePeriods
     .map<ShareSubstitutionData | null>((period) => {
       const substituteTeacher = period.substitution
-        ? substituteTeacherMap.get(period.substitution.substituteTeacherId)
+        ? substituteTeacherMap.get(period.substitution.substituteTeacherId ?? "")
         : null;
       const isFieldTrip = isFieldTripPeriod(period);
       if (!substituteTeacher && !isFieldTrip) return null;

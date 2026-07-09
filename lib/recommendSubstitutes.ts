@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { canCoverPairedClassRoom } from "@/lib/combinedRooms";
 
 export type SubstituteRecommendation = {
   teacherId: string;
@@ -48,15 +49,20 @@ export async function recommendSubstitutes(
   const recommendations: SubstituteRecommendation[] = [];
 
   for (const teacher of teachers) {
-    const busy = await prisma.teachingSchedule.findFirst({
+    const busySchedules = await prisma.teachingSchedule.findMany({
       where: {
         teacherId: teacher.id,
         dayOfWeek: schedule.dayOfWeek,
         period: schedule.period,
         term: schedule.term
-      }
+      },
+      include: { classRoom: true }
     });
-    if (busy) continue;
+    const blockingBusySchedules = busySchedules.filter(
+      (busySchedule) => !canCoverPairedClassRoom(busySchedule.classRoom.name, schedule.classRoom.name)
+    );
+    if (blockingBusySchedules.length > 0) continue;
+    const coversPairedRoom = busySchedules.length > 0;
 
     const alreadySubstituting = await prisma.substitution.findFirst({
       where: {
@@ -92,8 +98,8 @@ export async function recommendSubstitutes(
       }
     });
 
-    let score = 45;
-    const reasons = ["ว่างในคาบนี้"];
+    let score = coversPairedRoom ? 35 : 45;
+    const reasons = [coversPairedRoom ? "สอนห้องคู่ควบคาบเดียวกัน" : "ว่างในคาบนี้"];
     reasons.push(`วันนี้สอน ${teachingCountToday} คาบ`);
     const warnings: string[] = [];
 
