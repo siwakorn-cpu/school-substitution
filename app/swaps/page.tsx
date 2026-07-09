@@ -289,6 +289,8 @@ export default async function SwapsPage({
     Boolean(user.teacherId) &&
     Boolean(activeSubstitution.substituteTeacherId) &&
     activeSubstitution.substituteTeacherId === user.teacherId;
+  const canRecordExternalSubstitute =
+    canApproveScheduleChange || (Boolean(user.teacherId) && selected?.absence.teacherId === user.teacherId);
   const today = parseDateInput(toDateInputValue());
   const selectedIsPast = selected ? selected.absence.date < today : false;
   const canActOnSelected = !selectedIsPast || user.role === "ADMIN";
@@ -547,67 +549,75 @@ export default async function SwapsPage({
                     <p className="muted">
                       ใช้วันเดิม คาบเดิม ห้องเดิม และรายวิชาเดิม เปลี่ยนเฉพาะครูผู้สอน โดยครูเข้าแทนต้องว่างในคาบนี้
                     </p>
-                    {canApproveScheduleChange ? (
+                    {canApproveScheduleChange || canRecordExternalSubstitute ? (
                       <>
-                      <TableTeacherSearch targetId="substitute-candidate-table" />
-                      <div className="table-wrap" id="substitute-candidate-table">
-                        <table className="swap-table">
-                          <thead>
-                            <tr>
-                              <th>ครูเข้าแทน</th>
-                              <th>กลุ่มสาระ</th>
-                              <th>คะแนน</th>
-                              <th>เหตุผล</th>
-                              <th>บันทึกเข้าแทน</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {substituteCandidates.map((item) => (
-                              <tr key={item.teacherId} data-teacher-name={item.teacherName}>
-                                <td>
-                                  <TeacherHoverSchedule
-                                    name={item.teacherName}
-                                    teacherId={item.teacherId}
-                                    scheduleMap={candidateScheduleMap}
-                                  />
-                                </td>
-                                <td>{item.departmentName}</td>
-                                <td>{item.score}</td>
-                                <td>
-                                  <span className="warning-text">{[...item.reasons, ...item.warnings].join(", ")}</span>
-                                  <br />
-                                  <span className="muted warning-text">
-                                    {selected.schedule.classRoom.name} {selected.schedule.subject.name} →{" "}
-                                    <span className="no-glossary">{item.teacherName}</span>
-                                  </span>
-                                </td>
-                                <td>
-                                  <form className="form" action="/api/swaps" method="post">
-                                    <input type="hidden" name="intent" value="substitute" />
-                                    <input type="hidden" name="absencePeriodId" value={selected.id} />
-                                    <input type="hidden" name="substituteTeacherId" value={item.teacherId} />
-                                    <select name="subjectId" defaultValue={selected.schedule.subjectId} aria-label="รายวิชา">
-                                      {subjects.map((subject) => (
-                                        <option key={subject.id} value={subject.id}>
-                                          {subject.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <input
-                                      name="reason"
-                                      placeholder="เหตุผล/หมายเหตุ"
-                                      defaultValue={selected.substitution?.note ?? selected.absence.note ?? ""}
-                                    />
-                                    <button className="btn primary" type="submit">
-                                      ยืนยันเข้าแทน
-                                    </button>
-                                  </form>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                      {canApproveScheduleChange ? (
+                        <>
+                          <TableTeacherSearch targetId="substitute-candidate-table" />
+                          <div className="table-wrap" id="substitute-candidate-table">
+                            <table className="swap-table">
+                              <thead>
+                                <tr>
+                                  <th>ครูเข้าแทน</th>
+                                  <th>กลุ่มสาระ</th>
+                                  <th>คะแนน</th>
+                                  <th>เหตุผล</th>
+                                  <th>บันทึกเข้าแทน</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {substituteCandidates.map((item) => (
+                                  <tr key={item.teacherId} data-teacher-name={item.teacherName}>
+                                    <td>
+                                      <TeacherHoverSchedule
+                                        name={item.teacherName}
+                                        teacherId={item.teacherId}
+                                        scheduleMap={candidateScheduleMap}
+                                      />
+                                    </td>
+                                    <td>{item.departmentName}</td>
+                                    <td>{item.score}</td>
+                                    <td>
+                                      <span className="warning-text">{[...item.reasons, ...item.warnings].join(", ")}</span>
+                                      <br />
+                                      <span className="muted warning-text">
+                                        {selected.schedule.classRoom.name} {selected.schedule.subject.name} →{" "}
+                                        <span className="no-glossary">{item.teacherName}</span>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <form className="form" action="/api/swaps" method="post">
+                                        <input type="hidden" name="intent" value="substitute" />
+                                        <input type="hidden" name="absencePeriodId" value={selected.id} />
+                                        <input type="hidden" name="substituteTeacherId" value={item.teacherId} />
+                                        <select name="subjectId" defaultValue={selected.schedule.subjectId} aria-label="รายวิชา">
+                                          {subjects.map((subject) => (
+                                            <option key={subject.id} value={subject.id}>
+                                              {subject.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <input
+                                          name="reason"
+                                          placeholder="เหตุผล/หมายเหตุ"
+                                          defaultValue={
+                                            selected.substitution?.externalSubstituteName
+                                              ? selected.absence.note ?? ""
+                                              : selected.substitution?.note ?? selected.absence.note ?? ""
+                                          }
+                                        />
+                                        <button className="btn primary" type="submit">
+                                          ยืนยันเข้าแทน
+                                        </button>
+                                      </form>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      ) : null}
                       <div className="recommendation-item">
                         <div className="recommendation-main">
                           <strong>นิสิตนักศึกษาฝึกประสบการณ์วิชาชีพเข้าแทน</strong>
@@ -627,11 +637,6 @@ export default async function SwapsPage({
                             name="externalSubstituteName"
                             placeholder="ชื่อนิสิต/นักศึกษา"
                             required
-                          />
-                          <input
-                            name="reason"
-                            placeholder="เหตุผล/หมายเหตุ"
-                            defaultValue={selected.substitution?.note ?? selected.absence.note ?? ""}
                           />
                           <button className="btn primary" type="submit">
                             ยืนยันเข้าแทน

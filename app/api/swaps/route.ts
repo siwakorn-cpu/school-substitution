@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     const externalSubstituteName = String(formData.get("externalSubstituteName") ?? "").trim();
     const reason = String(formData.get("reason") ?? "").trim();
 
-    if (!(await canApproveScheduleChange(user)) || !externalSubstituteName) {
+    if (!externalSubstituteName) {
       return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
     }
 
@@ -103,8 +103,16 @@ export async function POST(request: Request) {
       include: { absence: true, schedule: true }
     });
 
+    const canRecordExternalSubstitute =
+      (await canApproveScheduleChange(user)) ||
+      (Boolean(user.teacherId) && absencePeriod?.absence.teacherId === user.teacherId);
+
     const today = parseDateInput(toDateInputValue());
-    if (!absencePeriod || (absencePeriod.absence.date < today && user.role !== "ADMIN")) {
+    if (
+      !absencePeriod ||
+      !canRecordExternalSubstitute ||
+      (absencePeriod.absence.date < today && user.role !== "ADMIN")
+    ) {
       return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
     }
 
