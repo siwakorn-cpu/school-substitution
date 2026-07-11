@@ -280,7 +280,11 @@ export default async function SwapsPage({
     canApproveScheduleChange &&
     (existingSwapRequest?.status !== "APPROVED" || user.role === "ADMIN") &&
     (activeSubstitution?.status !== "APPROVED" || user.role === "ADMIN");
-  const canCancelSubstitution = canApproveScheduleChange;
+  const isOwnSelectedAbsence = Boolean(user.teacherId) && selected?.absence.teacherId === user.teacherId;
+  // ครูเจ้าของคาบเสนอครูเข้าแทนได้เอง (รายการรออนุมัติจากครูที่ถูกขอ)
+  const canProposeSubstituteTeacher = canApproveScheduleChange || isOwnSelectedAbsence;
+  const canCancelSubstitution =
+    canApproveScheduleChange || (isOwnSelectedAbsence && activeSubstitution?.status === "PENDING");
   const canCancelSwap =
     existingSwapRequest?.status === "PENDING" &&
     (canApproveScheduleChange || (Boolean(user.teacherId) && existingSwapRequest.requesterTeacher.id === user.teacherId));
@@ -457,6 +461,14 @@ export default async function SwapsPage({
                     <p className="muted">
                       สลับได้เฉพาะคาบของห้องเรียน/กลุ่มห้องเดียวกันเท่านั้น ระบบตรวจครูไม่สอนซ้อน ห้องเรียนไม่ซ้อน และห้อง/อาคารไม่ชน
                     </p>
+                    {swapCandidates.length === 0 ? (
+                      <p className="muted">
+                        ไม่มีคาบที่สลับได้สำหรับคาบนี้ — คาบปลายทางต้องเป็นคาบของห้องเรียน/กลุ่มห้องเดียวกัน
+                        สอนโดยครูคนอื่น เป็นวิชาที่สลับได้ (ไม่ใช่คาบกิจกรรม) และครูทั้งสองฝั่งต้องว่างในคาบของกันและกัน
+                        หากไม่พบคาบที่เข้าเงื่อนไข แนะนำให้ใช้ &quot;ประเภทที่ 2: เข้าแทน&quot; แทน
+                      </p>
+                    ) : (
+                    <>
                     <TableTeacherSearch targetId="swap-candidate-table" />
                     <div className="table-wrap" id="swap-candidate-table">
                       <table className="swap-table">
@@ -542,6 +554,8 @@ export default async function SwapsPage({
                         </tbody>
                       </table>
                     </div>
+                    </>
+                    )}
                   </section>
 
                   <section>
@@ -551,8 +565,20 @@ export default async function SwapsPage({
                     </p>
                     {canApproveScheduleChange || canRecordExternalSubstitute ? (
                       <>
-                      {canApproveScheduleChange ? (
+                      {canProposeSubstituteTeacher && substituteCandidates.length === 0 ? (
+                        <p className="muted">
+                          ยังไม่พบครูที่ว่างและผ่านเงื่อนไขในคาบนี้ (ครูที่ติดสอน ติดสอนแทน หรือลาในวันเดียวกัน
+                          จะไม่ปรากฏในรายชื่อ)
+                        </p>
+                      ) : null}
+                      {canProposeSubstituteTeacher && substituteCandidates.length > 0 ? (
                         <>
+                          {!canApproveScheduleChange ? (
+                            <p className="muted">
+                              เลือกครูเพื่อส่งคำขอเข้าแทน รายการจะมีสถานะ &quot;รออนุมัติ&quot;
+                              จนกว่าครูที่ถูกขอจะกดอนุมัติในหน้านี้
+                            </p>
+                          ) : null}
                           <TableTeacherSearch targetId="substitute-candidate-table" />
                           <div className="table-wrap" id="substitute-candidate-table">
                             <table className="swap-table">
@@ -607,7 +633,7 @@ export default async function SwapsPage({
                                           }
                                         />
                                         <button className="btn primary" type="submit">
-                                          ยืนยันเข้าแทน
+                                          {canApproveScheduleChange ? "ยืนยันเข้าแทน" : "เสนอเข้าแทน (รออนุมัติ)"}
                                         </button>
                                       </form>
                                     </td>

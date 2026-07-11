@@ -21,15 +21,19 @@ export async function POST(request: Request) {
     const requestedSubjectId = String(formData.get("subjectId") ?? "");
     const reason = String(formData.get("reason") ?? "").trim();
 
-    if (!(await canApproveScheduleChange(user))) {
-      return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
-    }
-
     const valid = await validateSubstitute(absencePeriodId, substituteTeacherId);
     const absencePeriod = await prisma.absencePeriod.findUnique({
       where: { id: absencePeriodId },
       include: { absence: true, schedule: true }
     });
+
+    // ครูเจ้าของคาบเสนอครูเข้าแทนได้เอง — รายการเป็น PENDING จนกว่าครูที่ถูกขอจะกดอนุมัติ
+    const canProposeSubstitute =
+      (await canApproveScheduleChange(user)) ||
+      (Boolean(user.teacherId) && absencePeriod?.absence.teacherId === user.teacherId);
+    if (!canProposeSubstitute) {
+      return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+    }
 
     // Back-dated changes are admin-only (matches the จัดสอนแทน page).
     const today = parseDateInput(toDateInputValue());
@@ -333,7 +337,18 @@ export async function POST(request: Request) {
   if (intent === "cancel_substitute") {
     const absencePeriodId = String(formData.get("absencePeriodId") ?? "");
 
-    if (await canApproveScheduleChange(user)) {
+    const cancelTarget = await prisma.absencePeriod.findUnique({
+      where: { id: absencePeriodId },
+      include: { absence: true, substitution: true }
+    });
+    // ครูเจ้าของคาบยกเลิกข้อเสนอเข้าแทนของตัวเองได้เฉพาะตอนยังรออนุมัติ
+    const canCancelSubstitute =
+      (await canApproveScheduleChange(user)) ||
+      (Boolean(user.teacherId) &&
+        cancelTarget?.absence.teacherId === user.teacherId &&
+        cancelTarget?.substitution?.status === "PENDING");
+
+    if (canCancelSubstitute) {
       await prisma.$transaction([
         prisma.temporarySchedule.deleteMany({ where: { sourceType: "SUBSTITUTE", sourceId: absencePeriodId } }),
         prisma.substitution.deleteMany({ where: { absencePeriodId } }),

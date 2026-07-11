@@ -75,7 +75,18 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000 --max-time 5)",
       "Bash(lsof -nP -iTCP:3000 -sTCP:LISTEN)",
       "Bash(curl -s -c /private/tmp/claude-501/-Users-siwbook-Documents-ClaudeCode/833131cd-2c7d-4dda-84c5-5123b5064848/scratchpad/cookies.txt -X POST http://localhost:3000/api/auth/login -d 'username=admin&password=admin1234' -o /dev/null -w 'login: %{http_code}\\\\n')",
-      "Bash(curl -s -b /private/tmp/claude-501/-Users-siwbook-Documents-ClaudeCode/833131cd-2c7d-4dda-84c5-5123b5064848/scratchpad/cookies.txt http://localhost:3000/substitutions?absencePeriodId=cmrg5rjt8000dy20xdt2p34yp -o /dev/null -w 'substitutions: %{http_code}\\\\n')"
+      "Bash(curl -s -b /private/tmp/claude-501/-Users-siwbook-Documents-ClaudeCode/833131cd-2c7d-4dda-84c5-5123b5064848/scratchpad/cookies.txt http://localhost:3000/substitutions?absencePeriodId=cmrg5rjt8000dy20xdt2p34yp -o /dev/null -w 'substitutions: %{http_code}\\\\n')",
+      "Bash(curl -s -c /private/tmp/claude-501/-Users-siwbook-Documents-ClaudeCode/833131cd-2c7d-4dda-84c5-5123b5064848/scratchpad/cookies-teacher.txt -X POST http://localhost:3000/api/auth/login -d 'username=teacher&password=teacher1234' -o /dev/null -w 'login teacher: %{http_code}\\\\n')",
+      "Bash(curl -s -b /private/tmp/claude-501/-Users-siwbook-Documents-ClaudeCode/833131cd-2c7d-4dda-84c5-5123b5064848/scratchpad/cookies-teacher.txt http://localhost:3000/swaps?absencePeriodId=cmrg7hlj70003y2umz95hdzge)",
+      "Bash(sqlite3 /Users/siwbook/Documents/ClaudeCode/prisma/dev.db \"SELECT id FROM Teacher WHERE code='T001';\")",
+      "Bash(curl -s -b /private/tmp/claude-501/-Users-siwbook-Documents-ClaudeCode/833131cd-2c7d-4dda-84c5-5123b5064848/scratchpad/cookies-teacher.txt -X POST http://localhost:3000/api/swaps -d 'intent=substitute&absencePeriodId=cmrg7hlj70003y2umz95hdzge&substituteTeacherId=__CMDSUB_OUTPUT__&reason=ทดสอบครูเสนอเข้าแทน' -o /dev/null -w 'propose: %{http_code}\\\\n')",
+      "Bash(sqlite3 /Users/siwbook/Documents/ClaudeCode/prisma/dev.db \"SELECT t.code, s.status, s.note FROM Substitution s JOIN Teacher t ON t.id=s.substituteTeacherId WHERE s.absencePeriodId='cmrg7hlj70003y2umz95hdzge';\")",
+      "Bash(curl -s -b /private/tmp/claude-501/-Users-siwbook-Documents-ClaudeCode/833131cd-2c7d-4dda-84c5-5123b5064848/scratchpad/cookies-head.txt -X POST http://localhost:3000/api/swaps -d 'intent=approve_substitute&absencePeriodId=cmrg7hlj70003y2umz95hdzge' -o /dev/null -w 'approve: %{http_code}\\\\n')",
+      "Bash(sqlite3 /Users/siwbook/Documents/ClaudeCode/prisma/dev.db \"SELECT t.code, s.status FROM Substitution s JOIN Teacher t ON t.id=s.substituteTeacherId WHERE s.absencePeriodId='cmrg7hlj70003y2umz95hdzge';\")",
+      "Bash(curl -s -b /private/tmp/claude-501/-Users-siwbook-Documents-ClaudeCode/833131cd-2c7d-4dda-84c5-5123b5064848/scratchpad/cookies-teacher.txt -X POST http://localhost:3000/api/swaps -d 'intent=substitute&absencePeriodId=cmrg5rjt8000dy20xdt2p34yp&substituteTeacherId=__CMDSUB_OUTPUT__&reason=hack' -o /dev/null -w 'propose on someone else'\\\\''s period: %{http_code}\\\\n')",
+      "Bash(sqlite3 /Users/siwbook/Documents/ClaudeCode/prisma/dev.db \"SELECT COUNT\\(*\\) FROM Substitution WHERE absencePeriodId='cmrg5rjt8000dy20xdt2p34yp' AND note='hack';\")",
+      "Bash(DATABASE_URL=\"file:/Users/siwbook/Documents/ClaudeCode/prisma/dev.db\" npx tsx scripts/seed-demo-walkthrough.ts)",
+      "Bash(curl -s -b /private/tmp/claude-501/-Users-siwbook-Documents-ClaudeCode/833131cd-2c7d-4dda-84c5-5123b5064848/scratchpad/cookies.txt http://localhost:3000/substitutions?absencePeriodId=cmrg8ce460003y2eu7tj211ld)"
     ]
   }
 }
