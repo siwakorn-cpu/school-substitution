@@ -288,6 +288,79 @@ export default async function SubstitutionsPage({
   const selectedIsPast = selected ? selected.absence.date < today : false;
   const canEditSelectedSubstitution = canAssignSubstitution && (!selectedIsPast || user.role === "ADMIN");
   const shouldEditSelectedSubstitution = isEditing && canEditSelectedSubstitution;
+  const combinedCoverRecommendations = recommendations.filter((item) => item.coversCombinedRoom);
+  const availableRecommendations = recommendations.filter((item) => !item.coversCombinedRoom);
+
+  const renderRecommendation = (item: (typeof recommendations)[number]) => (
+    <div className="recommendation-item" key={item.teacherId}>
+      <div className="recommendation-main">
+        <div className="teacher-name-hover no-glossary" tabIndex={0}>
+          <strong>
+            {item.teacherCode} - {item.teacherName}
+          </strong>
+          <div className="teacher-hover-schedule" role="tooltip">
+            <strong>ตารางสอน จันทร์-ศุกร์</strong>
+            <table className="teacher-hover-table">
+              <thead>
+                <tr>
+                  <th>วัน</th>
+                  {hoverPeriods.map((period) => (
+                    <th key={period}>{period}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {hoverWeekDays.map((day) => (
+                  <tr key={day.dayOfWeek}>
+                    <th>{day.label}</th>
+                    {hoverPeriods.map((period) => {
+                      const schedule = recommendationScheduleMap.get(`${item.teacherId}:${day.dayOfWeek}:${period}`);
+                      return (
+                        <td key={`${day.dayOfWeek}-${period}`}>
+                          {schedule ? (
+                            <>
+                              <span>{schedule.classRoom.name}</span>
+                              <small>{schedule.subject.name}</small>
+                              {schedule.specialRoom ? <small>{schedule.specialRoom.name}</small> : null}
+                            </>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="actions">
+          <span className="badge">{item.departmentName}</span>
+          <span className="badge success">คะแนน {item.score}</span>
+          {item.coversCombinedRoom ? (
+            <span className="badge warning">คุมควบ ({item.coverRoomNames.join(", ")})</span>
+          ) : null}
+          {selected?.substitution?.substituteTeacherId === item.teacherId ? (
+            <span className="badge warning">ครูที่เลือกไว้</span>
+          ) : null}
+          {item.warnings.map((warning) => (
+            <span className="badge warning" key={warning}>
+              {warning}
+            </span>
+          ))}
+        </div>
+        <p className="muted">{item.reasons.join(" / ")}</p>
+      </div>
+      <form action="/api/substitutions" method="post">
+        <input type="hidden" name="absencePeriodId" value={selected?.id ?? ""} />
+        <input type="hidden" name="substituteTeacherId" value={item.teacherId} />
+        <button className="btn primary" type="submit">
+          {selected?.substitution ? "บันทึกครูคนนี้" : "เลือกครูคนนี้"}
+        </button>
+      </form>
+    </div>
+  );
 
   return (
     <AppShell user={user}>
@@ -507,73 +580,18 @@ export default async function SubstitutionsPage({
                       </a>
                     </div>
                   ) : null}
-                  {recommendations.map((item) => (
-                    <div className="recommendation-item" key={item.teacherId}>
-                      <div className="recommendation-main">
-                        <div className="teacher-name-hover no-glossary" tabIndex={0}>
-                          <strong>
-                            {item.teacherCode} - {item.teacherName}
-                          </strong>
-                          <div className="teacher-hover-schedule" role="tooltip">
-                            <strong>ตารางสอน จันทร์-ศุกร์</strong>
-                            <table className="teacher-hover-table">
-                              <thead>
-                                <tr>
-                                  <th>วัน</th>
-                                  {hoverPeriods.map((period) => (
-                                    <th key={period}>{period}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {hoverWeekDays.map((day) => (
-                                  <tr key={day.dayOfWeek}>
-                                    <th>{day.label}</th>
-                                    {hoverPeriods.map((period) => {
-                                      const schedule = recommendationScheduleMap.get(`${item.teacherId}:${day.dayOfWeek}:${period}`);
-                                      return (
-                                        <td key={`${day.dayOfWeek}-${period}`}>
-                                          {schedule ? (
-                                            <>
-                                              <span>{schedule.classRoom.name}</span>
-                                              <small>{schedule.subject.name}</small>
-                                              {schedule.specialRoom ? <small>{schedule.specialRoom.name}</small> : null}
-                                            </>
-                                          ) : (
-                                            "-"
-                                          )}
-                                        </td>
-                                      );
-                                    })}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                        <div className="actions">
-                          <span className="badge">{item.departmentName}</span>
-                          <span className="badge success">คะแนน {item.score}</span>
-                          {selected.substitution?.substituteTeacherId === item.teacherId ? (
-                            <span className="badge warning">ครูที่เลือกไว้</span>
-                          ) : null}
-                          {item.warnings.map((warning) => (
-                            <span className="badge warning" key={warning}>
-                              {warning}
-                            </span>
-                          ))}
-                        </div>
-                        <p className="muted">{item.reasons.join(" / ")}</p>
-                      </div>
-                      <form action="/api/substitutions" method="post">
-                        <input type="hidden" name="absencePeriodId" value={selected.id} />
-                        <input type="hidden" name="substituteTeacherId" value={item.teacherId} />
-                        <button className="btn primary" type="submit">
-                          {selected.substitution ? "บันทึกครูคนนี้" : "เลือกครูคนนี้"}
-                        </button>
-                      </form>
-                    </div>
-                  ))}
+                  {combinedCoverRecommendations.length > 0 ? (
+                    <>
+                      <h3>ตัวเลือกคุมควบห้องควบ (ภาษาต่างประเทศ)</h3>
+                      <p className="muted">
+                        ครูที่สอนหรือกำลังแทนห้องในกลุ่มควบเดียวกันในคาบนี้ รับนักเรียนเข้าคุมรวมได้
+                        ทั้งห้องเดียวหรือหลายห้องพร้อมกัน
+                      </p>
+                      {combinedCoverRecommendations.map(renderRecommendation)}
+                      {availableRecommendations.length > 0 ? <h3>ครูที่ว่างในคาบนี้</h3> : null}
+                    </>
+                  ) : null}
+                  {availableRecommendations.map(renderRecommendation)}
                 </div>
               )}
                 </>

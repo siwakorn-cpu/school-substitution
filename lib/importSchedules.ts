@@ -1,4 +1,5 @@
 import { parse } from "csv-parse/sync";
+import { classRoomsOverlap } from "@/lib/combinedRooms";
 import { readFirstWorksheet } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
 
@@ -89,16 +90,15 @@ export async function importSchedules(rows: ImportPreviewRow[], term = "1/2569")
       : null;
 
     for (const period of periods) {
-      const teacherConflict = await prisma.teachingSchedule.findFirst({
-        where: { teacherId: teacher.id, dayOfWeek, period, term }
+      const slotSchedules = await prisma.teachingSchedule.findMany({
+        where: { dayOfWeek, period, term },
+        include: { classRoom: true }
       });
-      const classConflict = await prisma.teachingSchedule.findFirst({
-        where: { classRoomId: classRoom.id, dayOfWeek, period, term }
-      });
+      const teacherConflict = slotSchedules.find((item) => item.teacherId === teacher.id);
+      // ห้องควบ เช่น "6/1,2" ชนกับ "6/1" เพราะเป็นนักเรียนกลุ่มเดียวกัน แต่ "6/1" กับ "6/2" (วิชาแยกเรียน) ไม่ชน
+      const classConflict = slotSchedules.find((item) => classRoomsOverlap(item.classRoom.name, classRoomName));
       const specialConflict = specialRoom
-        ? await prisma.teachingSchedule.findFirst({
-            where: { specialRoomId: specialRoom.id, dayOfWeek, period, term }
-          })
+        ? slotSchedules.find((item) => item.specialRoomId === specialRoom.id)
         : null;
 
       if (teacherConflict || classConflict || specialConflict) {

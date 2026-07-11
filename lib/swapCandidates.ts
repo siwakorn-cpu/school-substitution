@@ -1,3 +1,4 @@
+import { classRoomsOverlap, sameStudentGroup } from "@/lib/combinedRooms";
 import { prisma } from "@/lib/prisma";
 
 type ScheduleWithDetails = Awaited<ReturnType<typeof prisma.teachingSchedule.findFirstOrThrow>> & {
@@ -32,10 +33,19 @@ export async function getSwapCandidates(absencePeriodId: string) {
   const activitySlots = new Set(activityPeriods.map((activity) => `${activity.dayOfWeek}-${activity.period}`));
   if (activitySlots.has(`${source.dayOfWeek}-${source.period}`)) return [];
 
+  // แลกคาบได้เฉพาะคาบของนักเรียนกลุ่มเดียวกัน — เทียบจากห้องย่อยที่แยกจากชื่อ ไม่ใช่ชื่อห้องตรงตัว
+  const classRooms = await prisma.room.findMany({
+    where: { type: "CLASSROOM" },
+    select: { id: true, name: true }
+  });
+  const sameGroupRoomIds = classRooms
+    .filter((room) => sameStudentGroup(room.name, source.classRoom.name))
+    .map((room) => room.id);
+
   const allSchedules = await prisma.teachingSchedule.findMany({
     where: {
       term: source.term,
-      classRoomId: source.classRoomId,
+      classRoomId: { in: sameGroupRoomIds },
       id: { not: source.id }
     },
     include: {
@@ -77,27 +87,33 @@ export async function getSwapCandidates(absencePeriodId: string) {
     });
     if (targetBusyAtSourcePeriod) continue;
 
-    const targetRoomConflictAtSource = await prisma.teachingSchedule.findFirst({
+    const sourceSlotSchedules = await prisma.teachingSchedule.findMany({
       where: {
-        classRoomId: target.classRoomId,
         dayOfWeek: source.dayOfWeek,
         period: source.period,
         term: source.term,
-        id: { not: target.id }
-      }
+        id: { notIn: [source.id, target.id] }
+      },
+      include: { classRoom: true }
     });
-    if (targetRoomConflictAtSource && targetRoomConflictAtSource.id !== source.id) continue;
+    const targetRoomConflictAtSource = sourceSlotSchedules.find((item) =>
+      classRoomsOverlap(item.classRoom.name, target.classRoom.name)
+    );
+    if (targetRoomConflictAtSource) continue;
 
-    const sourceRoomConflictAtTarget = await prisma.teachingSchedule.findFirst({
+    const targetSlotSchedules = await prisma.teachingSchedule.findMany({
       where: {
-        classRoomId: source.classRoomId,
         dayOfWeek: target.dayOfWeek,
         period: target.period,
         term: source.term,
-        id: { not: source.id }
-      }
+        id: { notIn: [source.id, target.id] }
+      },
+      include: { classRoom: true }
     });
-    if (sourceRoomConflictAtTarget && sourceRoomConflictAtTarget.id !== target.id) continue;
+    const sourceRoomConflictAtTarget = targetSlotSchedules.find((item) =>
+      classRoomsOverlap(item.classRoom.name, source.classRoom.name)
+    );
+    if (sourceRoomConflictAtTarget) continue;
 
     if (source.specialRoomId) {
       const sourceSpecialConflict = await prisma.teachingSchedule.findFirst({

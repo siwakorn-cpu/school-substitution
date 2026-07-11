@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { classRoomsOverlap } from "@/lib/combinedRooms";
 import { prisma } from "@/lib/prisma";
 import { canImportSchedule } from "@/lib/rbac";
 import { redirectTo } from "@/lib/redirect";
@@ -43,37 +44,27 @@ async function validateSchedule(data: ReturnType<typeof readScheduleForm>, curre
   }
 
   const excludeCurrent = currentId ? { id: { not: currentId } } : {};
-  const [teacherConflict, classRoomConflict, specialRoomConflict] = await Promise.all([
-    prisma.teachingSchedule.findFirst({
+  const [classRoom, slotSchedules] = await Promise.all([
+    prisma.room.findUnique({ where: { id: data.classRoomId } }),
+    prisma.teachingSchedule.findMany({
       where: {
         ...excludeCurrent,
-        teacherId: data.teacherId,
         dayOfWeek: data.dayOfWeek,
         period: data.period,
         term: data.term
-      }
-    }),
-    prisma.teachingSchedule.findFirst({
-      where: {
-        ...excludeCurrent,
-        classRoomId: data.classRoomId,
-        dayOfWeek: data.dayOfWeek,
-        period: data.period,
-        term: data.term
-      }
-    }),
-    data.specialRoomId
-      ? prisma.teachingSchedule.findFirst({
-          where: {
-            ...excludeCurrent,
-            specialRoomId: data.specialRoomId,
-            dayOfWeek: data.dayOfWeek,
-            period: data.period,
-            term: data.term
-          }
-        })
-      : Promise.resolve(null)
+      },
+      include: { classRoom: true }
+    })
   ]);
+
+  const teacherConflict = slotSchedules.find((item) => item.teacherId === data.teacherId);
+  // ห้องควบ เช่น "6/1,2" ชนกับ "6/1" เพราะเป็นนักเรียนกลุ่มเดียวกัน
+  const classRoomConflict = classRoom
+    ? slotSchedules.find((item) => classRoomsOverlap(item.classRoom.name, classRoom.name))
+    : null;
+  const specialRoomConflict = data.specialRoomId
+    ? slotSchedules.find((item) => item.specialRoomId === data.specialRoomId)
+    : null;
 
   if (teacherConflict) return "ครูคนนี้มีตารางสอนในคาบดังกล่าวแล้ว";
   if (classRoomConflict) return "ห้องเรียนนี้มีตารางสอนในคาบดังกล่าวแล้ว";
