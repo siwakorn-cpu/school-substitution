@@ -296,6 +296,42 @@ export default async function SwapsPage({
   const canRecordExternalSubstitute =
     canApproveScheduleChange || (Boolean(user.teacherId) && selected?.absence.teacherId === user.teacherId);
   const today = parseDateInput(toDateInputValue());
+
+  // รายการที่รอให้ฉันกดอนุมัติ (เฉพาะที่ยังไม่เลยกำหนด) — แสดงบนสุดของหน้า ไม่ขึ้นกับวันที่ที่เลือกดู
+  const myPendingSubstituteApprovals = user.teacherId
+    ? await prisma.substitution.findMany({
+        where: { substituteTeacherId: user.teacherId, status: "PENDING", date: { gte: today } },
+        orderBy: [{ date: "asc" }, { period: "asc" }],
+        include: {
+          absencePeriod: {
+            include: {
+              absence: { include: { teacher: true } },
+              schedule: { include: { classRoom: true, subject: true, specialRoom: true } }
+            }
+          }
+        }
+      })
+    : [];
+  const myPendingSwapApprovals = user.teacherId
+    ? await prisma.swapRequest.findMany({
+        where: {
+          targetTeacherId: user.teacherId,
+          status: "PENDING",
+          OR: [{ date: { gte: today } }, { toDate: { gte: today } }]
+        },
+        orderBy: { date: "asc" },
+        include: { requesterTeacher: true }
+      })
+    : [];
+  const myApprovalSwapSchedules = myPendingSwapApprovals.length
+    ? await prisma.teachingSchedule.findMany({
+        where: { id: { in: myPendingSwapApprovals.flatMap((item) => [item.fromScheduleId, item.toScheduleId]) } },
+        include: { classRoom: true, subject: true }
+      })
+    : [];
+  const myApprovalScheduleMap = new Map(myApprovalSwapSchedules.map((schedule) => [schedule.id, schedule]));
+  const myApprovalCount = myPendingSubstituteApprovals.length + myPendingSwapApprovals.length;
+
   const selectedIsPast = selected ? selected.absence.date < today : false;
   const canActOnSelected = !selectedIsPast || user.role === "ADMIN";
   const showCandidates = (!selected || isEditing || !hasResolution) && canActOnSelected;
@@ -311,6 +347,80 @@ export default async function SwapsPage({
       </div>
 
       <section className="grid">
+        {myApprovalCount > 0 ? (
+          <div className="card">
+            <h2>🔔 รอฉันอนุมัติ ({myApprovalCount})</h2>
+            <div className="recommendation-list">
+              {myPendingSubstituteApprovals.map((item) => (
+                <div className="recommendation-item" key={item.id}>
+                  <div className="recommendation-main">
+                    <strong>ขอให้เข้าสอนแทน</strong>
+                    <p className="muted">
+                      {formatThaiDate(item.date)} · คาบ {item.period} · {item.absencePeriod.schedule.classRoom.name} ·{" "}
+                      {item.absencePeriod.schedule.subject.name}
+                      {item.absencePeriod.schedule.specialRoom ? ` · ${item.absencePeriod.schedule.specialRoom.name}` : ""} ·
+                      ครูเดิม: <span className="no-glossary">{item.absencePeriod.absence.teacher.name}</span>
+                      {item.note && item.note !== "เข้าแทน" ? ` · หมายเหตุ: ${item.note}` : ""}
+                    </p>
+                  </div>
+                  <div className="actions">
+                    <form action="/api/swaps" method="post">
+                      <input type="hidden" name="intent" value="approve_substitute" />
+                      <input type="hidden" name="absencePeriodId" value={item.absencePeriodId} />
+                      <button className="btn primary" type="submit">
+                        อนุมัติ
+                      </button>
+                    </form>
+                    <form action="/api/swaps" method="post">
+                      <input type="hidden" name="intent" value="reject_substitute" />
+                      <input type="hidden" name="absencePeriodId" value={item.absencePeriodId} />
+                      <button className="btn danger" type="submit">
+                        ไม่อนุมัติ
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+              {myPendingSwapApprovals.map((request) => {
+                const fromSchedule = myApprovalScheduleMap.get(request.fromScheduleId);
+                const toSchedule = myApprovalScheduleMap.get(request.toScheduleId);
+                const toDate =
+                  request.toDate ?? (toSchedule ? nextDateForDayOfWeek(request.date, toSchedule.dayOfWeek) : null);
+                return (
+                  <div className="recommendation-item" key={request.id}>
+                    <div className="recommendation-main">
+                      <strong>ขอสลับคาบ</strong>
+                      <p className="muted">
+                        จาก <span className="no-glossary">{request.requesterTeacher.name}</span> ·{" "}
+                        {formatThaiDate(request.date)} คาบ {fromSchedule?.period ?? "-"} (
+                        {fromSchedule?.classRoom.name ?? "-"} {fromSchedule?.subject.name ?? ""}) ⇄{" "}
+                        {toDate ? formatThaiDate(toDate) : "-"} คาบ {toSchedule?.period ?? "-"} (
+                        {toSchedule?.classRoom.name ?? "-"} {toSchedule?.subject.name ?? ""})
+                        {request.note ? ` · เหตุผล: ${request.note}` : ""}
+                      </p>
+                    </div>
+                    <div className="actions">
+                      <form action="/api/swaps" method="post">
+                        <input type="hidden" name="intent" value="approve" />
+                        <input type="hidden" name="id" value={request.id} />
+                        <button className="btn primary" type="submit">
+                          อนุมัติ
+                        </button>
+                      </form>
+                      <form action="/api/swaps" method="post">
+                        <input type="hidden" name="intent" value="reject" />
+                        <input type="hidden" name="id" value={request.id} />
+                        <button className="btn danger" type="submit">
+                          ไม่อนุมัติ
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
         <div className="card card-pending">
           <h2>คาบไปราชการ/ลากิจ (คาบที่ยังไม่แลกคาบหรือขอให้สอนแทน)</h2>
           <div className="table-wrap">

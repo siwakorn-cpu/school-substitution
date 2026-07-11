@@ -67,9 +67,7 @@ export default async function DashboardPage() {
           ]
         }
       }),
-      user.teacherId
-        ? prisma.swapRequest.count({ where: { targetTeacherId: user.teacherId, status: "PENDING" } })
-        : Promise.resolve(0)
+      user.teacherId ? countMyPendingApprovals(user.teacherId, today) : Promise.resolve(0)
     ]);
     cards.push(
       { label: "ครูในกลุ่มสาระ", value: deptTeachers },
@@ -80,9 +78,7 @@ export default async function DashboardPage() {
   } else {
     // TEACHER — personal view only
     const [myApprovals, myOpenRequests, myAbsencesMonth] = await Promise.all([
-      user.teacherId
-        ? prisma.swapRequest.count({ where: { targetTeacherId: user.teacherId, status: "PENDING" } })
-        : Promise.resolve(0),
+      user.teacherId ? countMyPendingApprovals(user.teacherId, today) : Promise.resolve(0),
       user.teacherId
         ? prisma.swapRequest.count({ where: { requesterTeacherId: user.teacherId, status: "PENDING" } })
         : Promise.resolve(0),
@@ -272,4 +268,22 @@ export default async function DashboardPage() {
       </section>
     </AppShell>
   );
+}
+
+// รายการที่รอให้ครูคนนี้กดอนุมัติ เฉพาะที่ยังไม่เลยกำหนด:
+// คำขอสลับคาบที่ส่งถึงฉัน + ข้อเสนอเข้าแทนที่ขอให้ฉันเข้าสอน
+async function countMyPendingApprovals(teacherId: string, today: Date) {
+  const [pendingSwaps, pendingSubstitutions] = await Promise.all([
+    prisma.swapRequest.count({
+      where: {
+        targetTeacherId: teacherId,
+        status: "PENDING",
+        OR: [{ date: { gte: today } }, { toDate: { gte: today } }]
+      }
+    }),
+    prisma.substitution.count({
+      where: { substituteTeacherId: teacherId, status: "PENDING", date: { gte: today } }
+    })
+  ]);
+  return pendingSwaps + pendingSubstitutions;
 }
