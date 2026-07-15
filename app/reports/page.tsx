@@ -341,7 +341,7 @@ export default async function ReportsPage({
                 <tr>
                   <th>ครู</th>
                   <th>กลุ่มสาระ</th>
-                  <th>ลาป่วย (วัน)</th>
+                  <th>ไม่มาปฏิบัติงาน (วัน)</th>
                   <th>ลากิจ (วัน)</th>
                   <th>รวม (วัน)</th>
                 </tr>

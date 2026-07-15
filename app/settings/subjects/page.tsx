@@ -158,7 +158,7 @@ export default async function SubjectSettingsPage({
         <span className="en-caption">Level meeting periods</span>
         <p className="muted">
           กำหนดประชุมระดับ ม.1-6 และเลือกครูผู้เข้าสอนหลายคนได้ในรอบเดียว ระบบจะสร้างคาบสอนในตารางครูโดยอัตโนมัติ
-          คาบนี้ไม่ถูกใช้แลกคาบ/สลับคาบ และไม่ต้องจัดสอนแทนเมื่อครูลาป่วย ลากิจ หรือไปราชการ
+          คาบนี้ไม่ถูกใช้แลกคาบ/สลับคาบ และไม่ต้องจัดสอนแทนเมื่อครูไม่มาปฏิบัติงาน ลากิจ หรือไปราชการ
         </p>
 
         {params.levelMeetingMessage ? <p className="notice success">{params.levelMeetingMessage}</p> : null}

@@ -36,7 +36,7 @@ export default async function SwapsPage({
   const todayHref = `/swaps${absencePeriodId ? `?absencePeriodId=${absencePeriodId}${isEditing ? "&edit=1" : ""}` : ""}`;
 
   const substitutionWhere: Prisma.SubstitutionWhereInput = {
-    absencePeriod: { absence: { type: { in: ["OFFICIAL", "PERSONAL"] } } },
+    absencePeriod: { absence: { type: { in: ["OFFICIAL", "PERSONAL", "LEAVE"] } } },
     date: { gte: viewDateStart, lt: viewDateEnd }
   };
   if (isTeacherScoped) {
@@ -50,12 +50,15 @@ export default async function SwapsPage({
     prisma.absencePeriod.findMany({
       where: {
         absence: {
-          type: { in: ["OFFICIAL", "PERSONAL"] },
+          // ลาป่วย (LEAVE) แลกคาบได้ด้วย สำหรับกลุ่มสาระที่หาครูสอนแทนยาก
+          type: { in: ["OFFICIAL", "PERSONAL", "LEAVE"] },
           ...(isTeacherScoped ? { teacherId: user.teacherId ?? "" } : {})
         },
         // Hide periods already handled: an active substitute (pending/approved), or an active swap (pending/approved).
         OR: [{ substitution: null }, { substitution: { status: "REJECTED" } }],
-        swapRequests: { none: { status: { in: ["PENDING", "APPROVED"] } } }
+        swapRequests: { none: { status: { in: ["PENDING", "APPROVED"] } } },
+        // Hide periods closed without needing anyone (e.g. field trips marked on the substitutions page).
+        NOT: { status: "DONE", actionType: "NONE" }
       },
       include: {
         absence: { include: { teacher: true } },
@@ -332,6 +335,39 @@ export default async function SwapsPage({
   const myApprovalScheduleMap = new Map(myApprovalSwapSchedules.map((schedule) => [schedule.id, schedule]));
   const myApprovalCount = myPendingSubstituteApprovals.length + myPendingSwapApprovals.length;
 
+  // วันที่ที่มีรายการแลกคาบ/เข้าแทนจริง — ทำเป็นปุ่มลัดให้กดดูได้เลย ไม่ต้องเดาวันเอง
+  const [recentSwapDates, recentSubstitutionDates] = await Promise.all([
+    prisma.swapRequest.findMany({
+      where: isTeacherScoped
+        ? { OR: [{ requesterTeacherId: user.teacherId ?? "" }, { targetTeacherId: user.teacherId ?? "" }] }
+        : {},
+      select: { date: true },
+      orderBy: { date: "desc" },
+      distinct: ["date"],
+      take: 8
+    }),
+    prisma.substitution.findMany({
+      where: isTeacherScoped
+        ? {
+            OR: [
+              { substituteTeacherId: user.teacherId ?? "" },
+              { absencePeriod: { absence: { teacherId: user.teacherId ?? "" } } }
+            ]
+          }
+        : {},
+      select: { date: true },
+      orderBy: { date: "desc" },
+      distinct: ["date"],
+      take: 8
+    })
+  ]);
+  const recordDates = [
+    ...new Set([...recentSwapDates, ...recentSubstitutionDates].map((item) => toDateInputValue(item.date)))
+  ]
+    .sort()
+    .reverse()
+    .slice(0, 8);
+
   const selectedIsPast = selected ? selected.absence.date < today : false;
   const canActOnSelected = !selectedIsPast || user.role === "ADMIN";
   const showCandidates = (!selected || isEditing || !hasResolution) && canActOnSelected;
@@ -422,12 +458,13 @@ export default async function SwapsPage({
           </div>
         ) : null}
         <div className="card card-pending">
-          <h2>คาบไปราชการ/ลากิจ (คาบที่ยังไม่แลกคาบหรือขอให้สอนแทน)</h2>
+          <h2>คาบไปราชการ/ลากิจ/ไม่มาปฏิบัติงาน (คาบที่ยังไม่แลกคาบหรือขอให้สอนแทน)</h2>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>วันที่</th>
+                  <th>ประเภท</th>
                   <th>ครู</th>
                   <th>คาบ</th>
                   <th>ห้อง</th>
@@ -439,6 +476,11 @@ export default async function SwapsPage({
                 {periods.map((period) => (
                   <tr key={period.id}>
                     <td>{formatThaiDate(period.absence.date)}</td>
+                    <td>
+                      <span className={`badge ${period.absence.type === "LEAVE" ? "warning" : ""}`}>
+                        {absenceTypeLabel(period.absence.type)}
+                      </span>
+                    </td>
                     <td className="no-glossary">{period.absence.teacher.name}</td>
                     <td>{period.period}</td>
                     <td>{period.schedule.classRoom.name}</td>
@@ -805,12 +847,28 @@ export default async function SwapsPage({
               วันนี้
             </a>
           </form>
+          {recordDates.length > 0 ? (
+            <div className="actions" style={{ marginTop: "0.5rem", flexWrap: "wrap" }}>
+              <span className="muted">วันที่มีรายการ:</span>
+              {recordDates.map((dateValue) => (
+                <a
+                  key={dateValue}
+                  className={`btn ${dateValue === selectedViewDate ? "primary" : ""}`}
+                  href={`/swaps?viewDate=${dateValue}${absencePeriodId ? `&absencePeriodId=${absencePeriodId}` : ""}`}
+                >
+                  {formatThaiDate(parseDateInput(dateValue))}
+                </a>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="card card-resolved">
           <h2>รายการแลกคาบ (สลับคาบ)</h2>
           {swapTableRows.length === 0 ? (
-            <p className="muted">ไม่มีรายการในวันที่เลือก</p>
+            <p className="muted">
+              ไม่มีรายการในวันที่เลือก — กดปุ่ม &quot;วันที่มีรายการ&quot; ด้านบนเพื่อดูและ Export รูปภาพ
+            </p>
           ) : (
             <div className="table-wrap">
               <table>
@@ -905,7 +963,9 @@ export default async function SwapsPage({
         <div className="card card-resolved">
           <h2>รายการเข้าแทน</h2>
           {substitutionTableRows.length === 0 ? (
-            <p className="muted">ไม่มีรายการในวันที่เลือก</p>
+            <p className="muted">
+              ไม่มีรายการในวันที่เลือก — กดปุ่ม &quot;วันที่มีรายการ&quot; ด้านบนเพื่อดูและ Export รูปภาพ
+            </p>
           ) : (
             <div className="table-wrap">
               <table>
@@ -1018,4 +1078,10 @@ export default async function SwapsPage({
       </div>
     </AppShell>
   );
+}
+
+function absenceTypeLabel(type: "LEAVE" | "PERSONAL" | "OFFICIAL") {
+  if (type === "LEAVE") return "ไม่มาปฏิบัติงาน";
+  if (type === "PERSONAL") return "ลากิจ";
+  return "ไปราชการ";
 }

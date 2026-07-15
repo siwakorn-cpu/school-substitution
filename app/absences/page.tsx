@@ -76,6 +76,12 @@ export default async function AbsencesPage({
           </p>
         </div>
       </div>
+      {/* ตัวเลือกหมายเหตุสำเร็จรูปสำหรับ "ไม่มาปฏิบัติงาน" — เลือกจากรายการหรือพิมพ์เองก็ได้ */}
+      <datalist id="absence-note-presets">
+        <option value="แจ้งลาป่วย" />
+        <option value="แจ้งลากิจ" />
+        <option value="ไม่ได้แจ้งล่วงหน้า" />
+      </datalist>
       <section className="grid">
         <div className="card span-4">
           <h2>ค้นหาคาบสอน</h2>
@@ -103,7 +109,7 @@ export default async function AbsencesPage({
 
         {canManageAllAbsences ? (
           <div className="card span-4">
-            <h2>บันทึกลาป่วย/ลากิจหลายคน</h2>
+            <h2>บันทึกไม่มาปฏิบัติงาน/ลากิจหลายคน</h2>
             <form className="form" action="/api/absences" method="post">
               <input type="hidden" name="intent" value="bulk" />
               <label>
@@ -113,13 +119,13 @@ export default async function AbsencesPage({
               <label>
                 ประเภท
                 <select name="type" defaultValue="LEAVE">
-                  <option value="LEAVE">ลาป่วย</option>
+                  <option value="LEAVE">ไม่มาปฏิบัติงาน</option>
                   <option value="PERSONAL">ลากิจ</option>
                 </select>
               </label>
               <label>
                 หมายเหตุ
-                <input name="note" placeholder="ถ้ามี" />
+                <input name="note" list="absence-note-presets" placeholder="เลือกหรือพิมพ์เอง เช่น แจ้งลาป่วย" />
               </label>
               <div className="checkbox-grid" aria-label="เลือกครู">
                 {teachers.map((teacher) => (
@@ -156,7 +162,7 @@ export default async function AbsencesPage({
                   <label>
                     ประเภท
                   <select name="type">
-                    <option value="LEAVE">ลาป่วย</option>
+                    <option value="LEAVE">ไม่มาปฏิบัติงาน</option>
                     <option value="PERSONAL">ลากิจ</option>
                     <option value="OFFICIAL">ไปราชการ</option>
                   </select>
@@ -172,7 +178,7 @@ export default async function AbsencesPage({
               )}
                 <label>
                   หมายเหตุ
-                  <input name="note" placeholder="ถ้ามี" />
+                  <input name="note" list="absence-note-presets" placeholder="เลือกหรือพิมพ์เอง เช่น แจ้งลาป่วย" />
                 </label>
               </div>
               <div className="table-wrap">
@@ -264,14 +270,19 @@ export default async function AbsencesPage({
                             <label>
                               ประเภท
                               <select name="type" defaultValue={absence.type}>
-                                {canManageAllAbsences ? <option value="LEAVE">ลาป่วย</option> : null}
+                                {canManageAllAbsences ? <option value="LEAVE">ไม่มาปฏิบัติงาน</option> : null}
                                 <option value="PERSONAL">ลากิจ</option>
                                 <option value="OFFICIAL">ไปราชการ</option>
                               </select>
                             </label>
                             <label>
                               หมายเหตุ
-                              <input name="note" defaultValue={absence.note ?? ""} placeholder="ถ้ามี" />
+                              <input
+                                name="note"
+                                list="absence-note-presets"
+                                defaultValue={absence.note ?? ""}
+                                placeholder="เลือกหรือพิมพ์เอง เช่น แจ้งลาป่วย"
+                              />
                             </label>
                             <button className="btn primary" type="submit">
                               บันทึก
@@ -332,7 +343,7 @@ export default async function AbsencesPage({
 function absenceTypeLabel(type: string) {
   if (type === "OFFICIAL") return "ไปราชการ";
   if (type === "PERSONAL") return "ลากิจ";
-  return "ลาป่วย";
+  return "ไม่มาปฏิบัติงาน";
 }
 
 // Status colour of a period button: green = handled, yellow = pending approval, red = not handled yet.

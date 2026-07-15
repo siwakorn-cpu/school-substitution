@@ -147,6 +147,8 @@ const GLOSSARY: [string, string][] = [
   ["อนุมัติ", "Approved"],
   ["ใช้งาน", "Active"],
   ["ปิดใช้งาน", "Inactive"],
+  ["ไม่มาปฏิบัติงาน", "Absent from duty"],
+  ["แจ้งลาป่วย", "Reported sick leave"],
   ["ลาป่วย", "Sick leave"],
   ["ลากิจ", "Personal leave"],
   ["ไปราชการ", "Official duty"],

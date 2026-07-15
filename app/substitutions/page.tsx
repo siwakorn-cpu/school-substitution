@@ -139,6 +139,14 @@ export default async function SubstitutionsPage({
         include: { department: true }
       })
     : null;
+  // คาบลาป่วยแก้ด้วยการสลับคาบได้ (จากหน้าแลกคาบ) — แสดงสถานะที่นี่ให้ครบ
+  const selectedSwapRequest = selected
+    ? await prisma.swapRequest.findFirst({
+        where: { absencePeriodId: selected.id, status: { in: ["PENDING", "APPROVED"] } },
+        orderBy: { createdAt: "desc" },
+        include: { targetTeacher: true }
+      })
+    : null;
   // Audit trail (who assigned + when) — visible to ADMIN only.
   const assignedByUser =
     user.role === "ADMIN" && selected?.substitution
@@ -174,11 +182,11 @@ export default async function SubstitutionsPage({
     ? params.printDepartmentId ?? ""
     : selected?.absence.teacher.departmentId ?? selectedPrintTeacher?.departmentId ?? printDepartments[0]?.id ?? "";
   const selectedPrintDepartment = printDepartments.find((department) => department.id === selectedPrintDepartmentId) ?? null;
+  // รูปสรุปครอบคลุมทุกประเภท (ไม่มาปฏิบัติงาน/ลากิจ/ไปราชการ) — รวมคาบที่จัดการผ่านหน้าแลกคาบด้วย
   const requiredSharePeriods = canUsePrintExports
     ? await prisma.absencePeriod.findMany({
         where: {
           absence: {
-            type: "LEAVE",
             date: { gte: printStartDate, lt: printEndExclusive },
             ...(usesDepartmentScope ? { teacher: { departmentId: departmentScopeId ?? "__none__" } } : {})
           }
@@ -191,7 +199,28 @@ export default async function SubstitutionsPage({
         orderBy: [{ absence: { date: "asc" } }, { absence: { teacher: { code: "asc" } } }, { period: "asc" }]
       })
     : [];
-  const sharePeriods = requiredSharePeriods.filter((period) => isSubstitutionComplete(period) || isFieldTripPeriod(period));
+  // คาบที่แก้ด้วยการสลับคาบ: ดึงคำขอที่อนุมัติแล้วมาแสดงในรูปสรุปแทนชื่อครูเข้าแทน
+  const shareSwapRequests = requiredSharePeriods.length
+    ? await prisma.swapRequest.findMany({
+        where: { absencePeriodId: { in: requiredSharePeriods.map((period) => period.id) }, status: "APPROVED" },
+        include: { targetTeacher: true }
+      })
+    : [];
+  const shareSwapSchedules = shareSwapRequests.length
+    ? await prisma.teachingSchedule.findMany({
+        where: { id: { in: shareSwapRequests.map((request) => request.toScheduleId) } }
+      })
+    : [];
+  const shareSwapScheduleMap = new Map(shareSwapSchedules.map((schedule) => [schedule.id, schedule]));
+  const shareSwapMap = new Map(
+    shareSwapRequests
+      .filter((request) => request.absencePeriodId)
+      .map((request) => [request.absencePeriodId as string, request])
+  );
+
+  const sharePeriods = requiredSharePeriods.filter(
+    (period) => isSubstitutionComplete(period) || isFieldTripPeriod(period) || isSwapResolvedPeriod(period)
+  );
   const substituteTeachers =
     sharePeriods.length > 0
       ? await prisma.teacher.findMany({
@@ -211,20 +240,32 @@ export default async function SubstitutionsPage({
       const substituteTeacher = period.substitution
         ? substituteTeacherMap.get(period.substitution.substituteTeacherId ?? "")
         : null;
+      const externalSubstituteName = period.substitution?.externalSubstituteName ?? null;
       const isFieldTrip = isFieldTripPeriod(period);
-      if (!substituteTeacher && !isFieldTrip) return null;
+      const resolvedSwap = isSwapResolvedPeriod(period) ? shareSwapMap.get(period.id) : undefined;
+      if (!substituteTeacher && !externalSubstituteName && !isFieldTrip && !resolvedSwap) return null;
 
+      const swapToSchedule = resolvedSwap ? shareSwapScheduleMap.get(resolvedSwap.toScheduleId) : undefined;
+      const absenceTypeNote =
+        period.absence.type === "OFFICIAL" ? "ไปราชการ" : period.absence.type === "PERSONAL" ? "ลากิจ" : null;
+      const baseNote = period.note ?? period.substitution?.note ?? null;
       return {
         date: formatThaiDate(period.absence.date),
         period: period.period,
         classRoom: period.schedule.classRoom.name,
         subject: period.schedule.subject.name,
         originalTeacher: `${period.absence.teacher.name} (${period.absence.teacher.department.name})`,
-        substituteTeacher: substituteTeacher
+        substituteTeacher: resolvedSwap
+          ? `สลับคาบกับ ${resolvedSwap.targetTeacher.name}${
+              resolvedSwap.toDate ? ` (${formatThaiDate(resolvedSwap.toDate)}${swapToSchedule ? ` คาบ ${swapToSchedule.period}` : ""})` : ""
+            }`
+          : substituteTeacher
           ? `${substituteTeacher.code} - ${substituteTeacher.name} (${substituteTeacher.department.name})`
+          : externalSubstituteName
+          ? `นิสิต/นักศึกษาฝึกประสบการณ์: ${externalSubstituteName}`
           : "ไม่ต้องจัดครูสอนแทน",
         specialRoom: period.schedule.specialRoom?.name ?? null,
-        note: period.note ?? period.substitution?.note ?? null
+        note: [absenceTypeNote, baseNote].filter(Boolean).join(" · ") || null
       };
     })
     .filter((item): item is ShareSubstitutionData => Boolean(item));
@@ -242,10 +283,20 @@ export default async function SubstitutionsPage({
     : [];
   const selectedTeacherComplete =
     selectedTeacherPeriods.length > 0 &&
-    selectedTeacherPeriods.every((period) => isSubstitutionComplete(period) || isFieldTripPeriod(period));
+    selectedTeacherPeriods.every(
+      (period) => isSubstitutionComplete(period) || isFieldTripPeriod(period) || isSwapResolvedPeriod(period)
+    );
   const selectedDepartmentComplete =
     selectedDepartmentPeriods.length > 0 &&
-    selectedDepartmentPeriods.every((period) => isSubstitutionComplete(period) || isFieldTripPeriod(period));
+    selectedDepartmentPeriods.every(
+      (period) => isSubstitutionComplete(period) || isFieldTripPeriod(period) || isSwapResolvedPeriod(period)
+    );
+  // รูปสรุปรายวันกดได้เมื่อทุกคาบของช่วงวันที่เลือก (ทั้งจัดสอนแทนและแลกคาบ) ถูกจัดการครบ
+  const allSharePeriodsComplete =
+    requiredSharePeriods.length > 0 &&
+    requiredSharePeriods.every(
+      (period) => isSubstitutionComplete(period) || isFieldTripPeriod(period) || isSwapResolvedPeriod(period)
+    );
   const printRangeLabel =
     printStartDateValue === printEndDateValue
       ? formatThaiDate(printStartDate)
@@ -433,7 +484,13 @@ export default async function SubstitutionsPage({
                     <td>{period.period}</td>
                     <td>
                       <span className={`badge ${period.status === "DONE" ? "success" : "warning"}`}>
-                        {isFieldTripPeriod(period) ? "ทัศนศึกษา" : period.status === "DONE" ? "เสร็จแล้ว" : "รอจัด"}
+                        {isFieldTripPeriod(period)
+                          ? "ทัศนศึกษา"
+                          : isSwapResolvedPeriod(period)
+                          ? "สลับคาบแล้ว"
+                          : period.status === "DONE"
+                          ? "เสร็จแล้ว"
+                          : "รอจัด"}
                       </span>
                     </td>
                   </tr>
@@ -480,6 +537,28 @@ export default async function SubstitutionsPage({
                     ) : selectedIsPast ? (
                       <span className="badge warning">ย้อนหลังแก้ไขได้เฉพาะผู้ดูแลระบบ</span>
                     ) : null}
+                  </div>
+                </div>
+              ) : selectedSwapRequest && !shouldEditSelectedSubstitution ? (
+                <div className="recommendation-list">
+                  <div className="recommendation-item">
+                    <div className="recommendation-main">
+                      <strong>
+                        {selectedSwapRequest.status === "APPROVED" ? "จัดการโดยการสลับคาบแล้ว" : "ส่งคำขอสลับคาบแล้ว รออนุมัติ"}
+                      </strong>
+                      <p className="muted">
+                        สลับคาบกับ: <span className="no-glossary">{selectedSwapRequest.targetTeacher.name}</span>
+                        {selectedSwapRequest.toDate ? ` · วันที่สลับ ${formatThaiDate(selectedSwapRequest.toDate)}` : ""}
+                      </p>
+                      <span className={`badge ${selectedSwapRequest.status === "APPROVED" ? "success" : "warning"}`}>
+                        {selectedSwapRequest.status === "APPROVED" ? "อนุมัติแล้ว" : "รออนุมัติ"}
+                      </span>
+                    </div>
+                    <div className="actions">
+                      <a className="btn" href={`/swaps?absencePeriodId=${selected.id}`}>
+                        ดู/แก้ไขที่หน้าแลกคาบ
+                      </a>
+                    </div>
                   </div>
                 </div>
               ) : selected.substitution && !shouldEditSelectedSubstitution ? (
@@ -651,7 +730,7 @@ export default async function SubstitutionsPage({
                   subtitle={selectedPrintTeacher ? `ครูเดิม: ${selectedPrintTeacher.name} · ${printRangeLabel}` : printRangeLabel}
                   filename={`สอนแทน-${printRangeLabel}-${selectedPrintTeacher?.name ?? "รายครู"}`}
                   items={shareItemsForSelectedTeacher}
-                  disabledReason={selectedTeacherComplete ? null : "จัดสอนแทนครูคนนี้ให้ครบก่อน"}
+                  disabledReason={selectedTeacherComplete ? null : "จัดสอนแทน/แลกคาบของครูคนนี้ให้ครบก่อน"}
                 />
               ) : null}
               {canExportDepartmentSubstitutionImage ? (
@@ -660,7 +739,7 @@ export default async function SubstitutionsPage({
                   subtitle={selectedPrintDepartment ? `กลุ่มสาระ: ${selectedPrintDepartment.name} · ${printRangeLabel}` : printRangeLabel}
                   filename={`สอนแทน-${printRangeLabel}-${selectedPrintDepartment?.name ?? "รายกลุ่มสาระ"}`}
                   items={shareItemsForSelectedDepartment}
-                  disabledReason={selectedDepartmentComplete ? null : "จัดสอนแทนครูที่ลาป่วยในกลุ่มสาระนี้ให้ครบก่อน"}
+                  disabledReason={selectedDepartmentComplete ? null : "จัดสอนแทน/แลกคาบในกลุ่มสาระนี้ให้ครบก่อน"}
                 />
               ) : null}
               {canExportDailySubstitutionImage ? (
@@ -669,6 +748,7 @@ export default async function SubstitutionsPage({
                   subtitle={`ครูทุกคนที่ลา · ${printRangeLabel}`}
                   filename={`สอนแทน-${printRangeLabel}-ทุกคน`}
                   items={shareItemsForDay}
+                  disabledReason={allSharePeriodsComplete ? null : "จัดสอนแทน/แลกคาบของวันที่เลือกให้ครบทุกคาบก่อน"}
                 />
               ) : null}
             </div>
@@ -693,4 +773,9 @@ function isFieldTripPeriod(period: {
   note?: string | null;
 }) {
   return period.status === "DONE" && period.actionType === "NONE" && period.note === FIELD_TRIP_NOTE;
+}
+
+// คาบที่แก้ด้วยการสลับคาบจากหน้าแลกคาบ (สลับสำเร็จแล้ว ไม่ต้องหาครูสอนแทน)
+function isSwapResolvedPeriod(period: { status: string; actionType: string }) {
+  return period.status === "DONE" && period.actionType === "SWAP";
 }

@@ -42,6 +42,22 @@ export async function POST(request: Request) {
     }
 
     if (valid && absencePeriod) {
+      // เลือกเข้าแทน = ยกเลิกคำขอสลับคาบเดิมของคาบนี้ (ถ้ามี) ไม่ให้สองวิธีค้างซ้อนกัน
+      const activeSwaps = await prisma.swapRequest.findMany({
+        where: { absencePeriodId, status: { in: ["PENDING", "APPROVED"] } }
+      });
+      if (activeSwaps.length > 0) {
+        await prisma.$transaction([
+          prisma.temporarySchedule.deleteMany({
+            where: { sourceType: "SWAP", sourceId: { in: activeSwaps.map((swap) => swap.id) } }
+          }),
+          prisma.swapRequest.updateMany({
+            where: { id: { in: activeSwaps.map((swap) => swap.id) } },
+            data: { status: "REJECTED", approvedById: user.id }
+          })
+        ]);
+      }
+
       const subject = requestedSubjectId
         ? await prisma.subject.findUnique({ where: { id: requestedSubjectId } })
         : null;
@@ -259,8 +275,17 @@ export async function POST(request: Request) {
       target &&
       canCreateForThisPeriod &&
       toDateMatchesTarget &&
-      (absencePeriod.absence.type === "OFFICIAL" || absencePeriod.absence.type === "PERSONAL")
+      // ลาป่วย (LEAVE) สลับคาบได้ด้วย — ช่วยกลุ่มสาระที่ครูน้อยจนหาครูสอนแทนไม่พอ
+      (absencePeriod.absence.type === "OFFICIAL" ||
+        absencePeriod.absence.type === "PERSONAL" ||
+        absencePeriod.absence.type === "LEAVE")
     ) {
+      // เลือกสลับคาบ = ยกเลิกการเข้าแทนเดิมของคาบนี้ (ถ้ามี) ไม่ให้สองวิธีค้างซ้อนกัน
+      await prisma.$transaction([
+        prisma.temporarySchedule.deleteMany({ where: { sourceType: "SUBSTITUTE", sourceId: absencePeriodId } }),
+        prisma.substitution.deleteMany({ where: { absencePeriodId } })
+      ]);
+
       const existingPending = await prisma.swapRequest.findFirst({
         where: { absencePeriodId, status: "PENDING" }
       });
@@ -374,6 +399,15 @@ export async function POST(request: Request) {
       // Reverting a previously approved swap: also remove its temporary schedules.
       await prisma.$transaction([
         prisma.temporarySchedule.deleteMany({ where: { sourceType: "SWAP", sourceId: id } }),
+        // คืนคาบกลับเป็นรอจัดการ ให้ไปสลับใหม่หรือจัดสอนแทนได้
+        ...(swapForPermission.absencePeriodId
+          ? [
+              prisma.absencePeriod.update({
+                where: { id: swapForPermission.absencePeriodId },
+                data: { actionType: "NONE" as const, status: "PENDING" as const }
+              })
+            ]
+          : []),
         prisma.swapRequest.update({
           where: { id },
           data: { status: "REJECTED", approvedById: user.id }
@@ -397,6 +431,15 @@ export async function POST(request: Request) {
               where: { id },
               data: { status: "APPROVED", approvedById: user.id }
             }),
+            // ปิดคาบเป็นเสร็จแล้ว — หน้าจัดสอนแทนและ Dashboard จะไม่นับเป็นคาบรอจัดอีก
+            ...(swap.absencePeriodId
+              ? [
+                  prisma.absencePeriod.update({
+                    where: { id: swap.absencePeriodId },
+                    data: { actionType: "SWAP" as const, status: "DONE" as const }
+                  })
+                ]
+              : []),
             prisma.temporarySchedule.create({
               data: {
                 date: swap.date,

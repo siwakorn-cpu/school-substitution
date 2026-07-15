@@ -73,6 +73,22 @@ export async function POST(request: Request) {
     return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
   }
 
+  // จัดสอนแทน = ยกเลิกคำขอสลับคาบเดิมของคาบนี้ (ถ้ามี) ไม่ให้สองวิธีค้างซ้อนกัน
+  const activeSwaps = await prisma.swapRequest.findMany({
+    where: { absencePeriodId, status: { in: ["PENDING", "APPROVED"] } }
+  });
+  if (activeSwaps.length > 0) {
+    await prisma.$transaction([
+      prisma.temporarySchedule.deleteMany({
+        where: { sourceType: "SWAP", sourceId: { in: activeSwaps.map((swap) => swap.id) } }
+      }),
+      prisma.swapRequest.updateMany({
+        where: { id: { in: activeSwaps.map((swap) => swap.id) } },
+        data: { status: "REJECTED", approvedById: user.id }
+      })
+    ]);
+  }
+
   await prisma.substitution.upsert({
     where: { absencePeriodId },
     create: {
