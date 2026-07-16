@@ -165,7 +165,8 @@ export async function POST(request: Request) {
 
 function normalizeAbsenceType(value: FormDataEntryValue | null) {
   const type = String(value ?? "LEAVE");
-  if (type === "OFFICIAL" || type === "PERSONAL" || type === "LEAVE") return type;
+  // SICK_ADVANCE = ลาป่วย(ล่วงหน้า) ทำงานเหมือนลากิจ — ครูบันทึกเองและจัดการผ่านหน้าแลกคาบได้
+  if (type === "OFFICIAL" || type === "PERSONAL" || type === "LEAVE" || type === "SICK_ADVANCE") return type;
   return "LEAVE";
 }
 

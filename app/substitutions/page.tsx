@@ -247,7 +247,13 @@ export default async function SubstitutionsPage({
 
       const swapToSchedule = resolvedSwap ? shareSwapScheduleMap.get(resolvedSwap.toScheduleId) : undefined;
       const absenceTypeNote =
-        period.absence.type === "OFFICIAL" ? "ไปราชการ" : period.absence.type === "PERSONAL" ? "ลากิจ" : null;
+        period.absence.type === "OFFICIAL"
+          ? "ไปราชการ"
+          : period.absence.type === "PERSONAL"
+          ? "ลากิจ"
+          : period.absence.type === "SICK_ADVANCE"
+          ? "ลาป่วย(ล่วงหน้า)"
+          : null;
       const baseNote = period.note ?? period.substitution?.note ?? null;
       return {
         date: formatThaiDate(period.absence.date),

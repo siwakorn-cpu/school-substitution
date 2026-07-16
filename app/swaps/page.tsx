@@ -36,7 +36,7 @@ export default async function SwapsPage({
   const todayHref = `/swaps${absencePeriodId ? `?absencePeriodId=${absencePeriodId}${isEditing ? "&edit=1" : ""}` : ""}`;
 
   const substitutionWhere: Prisma.SubstitutionWhereInput = {
-    absencePeriod: { absence: { type: { in: ["OFFICIAL", "PERSONAL", "LEAVE"] } } },
+    absencePeriod: { absence: { type: { in: ["OFFICIAL", "PERSONAL", "LEAVE", "SICK_ADVANCE"] } } },
     date: { gte: viewDateStart, lt: viewDateEnd }
   };
   if (isTeacherScoped) {
@@ -50,8 +50,8 @@ export default async function SwapsPage({
     prisma.absencePeriod.findMany({
       where: {
         absence: {
-          // ลาป่วย (LEAVE) แลกคาบได้ด้วย สำหรับกลุ่มสาระที่หาครูสอนแทนยาก
-          type: { in: ["OFFICIAL", "PERSONAL", "LEAVE"] },
+          // ไม่มาปฏิบัติงาน (LEAVE) และลาป่วยล่วงหน้า (SICK_ADVANCE) แลกคาบได้ด้วย
+          type: { in: ["OFFICIAL", "PERSONAL", "LEAVE", "SICK_ADVANCE"] },
           ...(isTeacherScoped ? { teacherId: user.teacherId ?? "" } : {})
         },
         // Hide periods already handled: an active substitute (pending/approved), or an active swap (pending/approved).
@@ -1080,8 +1080,9 @@ export default async function SwapsPage({
   );
 }
 
-function absenceTypeLabel(type: "LEAVE" | "PERSONAL" | "OFFICIAL") {
+function absenceTypeLabel(type: "LEAVE" | "PERSONAL" | "OFFICIAL" | "SICK_ADVANCE") {
   if (type === "LEAVE") return "ไม่มาปฏิบัติงาน";
+  if (type === "SICK_ADVANCE") return "ลาป่วย(ล่วงหน้า)";
   if (type === "PERSONAL") return "ลากิจ";
   return "ไปราชการ";
 }

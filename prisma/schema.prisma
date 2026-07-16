@@ -29,6 +29,7 @@ enum AbsenceType {
   LEAVE
   PERSONAL
   OFFICIAL
+  SICK_ADVANCE
 }
 
 enum AbsencePeriodAction {

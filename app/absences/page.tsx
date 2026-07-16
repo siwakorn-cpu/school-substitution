@@ -56,7 +56,7 @@ export default async function AbsencesPage({
     }),
     prisma.teacherAbsence.findMany({
       where: {
-        type: { in: ["PERSONAL", "OFFICIAL"] },
+        type: { in: ["PERSONAL", "OFFICIAL", "SICK_ADVANCE"] },
         ...(canManageAllAbsences ? {} : { teacherId: user.teacherId ?? "" })
       },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -76,12 +76,14 @@ export default async function AbsencesPage({
           </p>
         </div>
       </div>
-      {/* ตัวเลือกหมายเหตุสำเร็จรูปสำหรับ "ไม่มาปฏิบัติงาน" — เลือกจากรายการหรือพิมพ์เองก็ได้ */}
-      <datalist id="absence-note-presets">
-        <option value="แจ้งลาป่วย" />
-        <option value="แจ้งลากิจ" />
-        <option value="ไม่ได้แจ้งล่วงหน้า" />
-      </datalist>
+      {/* ตัวเลือกหมายเหตุสำเร็จรูป — เฉพาะผู้ดูแล/ผู้มีสิทธิ์จัดการการลา ส่วนสิทธิ์ครูพิมพ์เองเท่านั้น */}
+      {canManageAllAbsences ? (
+        <datalist id="absence-note-presets">
+          <option value="แจ้งลาป่วย" />
+          <option value="แจ้งลากิจ" />
+          <option value="ไม่ได้แจ้งล่วงหน้า" />
+        </datalist>
+      ) : null}
       <section className="grid">
         <div className="card span-4">
           <h2>ค้นหาคาบสอน</h2>
@@ -120,6 +122,7 @@ export default async function AbsencesPage({
                 ประเภท
                 <select name="type" defaultValue="LEAVE">
                   <option value="LEAVE">ไม่มาปฏิบัติงาน</option>
+                  <option value="SICK_ADVANCE">ลาป่วย(ล่วงหน้า)</option>
                   <option value="PERSONAL">ลากิจ</option>
                 </select>
               </label>
@@ -163,6 +166,7 @@ export default async function AbsencesPage({
                     ประเภท
                   <select name="type">
                     <option value="LEAVE">ไม่มาปฏิบัติงาน</option>
+                    <option value="SICK_ADVANCE">ลาป่วย(ล่วงหน้า)</option>
                     <option value="PERSONAL">ลากิจ</option>
                     <option value="OFFICIAL">ไปราชการ</option>
                   </select>
@@ -173,12 +177,17 @@ export default async function AbsencesPage({
                     <select name="type" defaultValue="OFFICIAL">
                       <option value="OFFICIAL">ไปราชการ</option>
                       <option value="PERSONAL">ลากิจ</option>
+                      <option value="SICK_ADVANCE">ลาป่วย(ล่วงหน้า)</option>
                     </select>
                 </label>
               )}
                 <label>
                   หมายเหตุ
-                  <input name="note" list="absence-note-presets" placeholder="เลือกหรือพิมพ์เอง เช่น แจ้งลาป่วย" />
+                  <input
+                    name="note"
+                    list={canManageAllAbsences ? "absence-note-presets" : undefined}
+                    placeholder={canManageAllAbsences ? "เลือกหรือพิมพ์เอง เช่น แจ้งลาป่วย" : "ถ้ามี"}
+                  />
                 </label>
               </div>
               <div className="table-wrap">
@@ -250,7 +259,7 @@ export default async function AbsencesPage({
                             className={`btn ${periodStatusClass(period)}`}
                             key={period.id}
                             href={
-                              absence.type === "OFFICIAL" || absence.type === "PERSONAL"
+                              absence.type === "OFFICIAL" || absence.type === "PERSONAL" || absence.type === "SICK_ADVANCE"
                                 ? `/swaps?absencePeriodId=${period.id}`
                                 : `/substitutions?absencePeriodId=${period.id}`
                             }
@@ -271,6 +280,7 @@ export default async function AbsencesPage({
                               ประเภท
                               <select name="type" defaultValue={absence.type}>
                                 {canManageAllAbsences ? <option value="LEAVE">ไม่มาปฏิบัติงาน</option> : null}
+                                <option value="SICK_ADVANCE">ลาป่วย(ล่วงหน้า)</option>
                                 <option value="PERSONAL">ลากิจ</option>
                                 <option value="OFFICIAL">ไปราชการ</option>
                               </select>
@@ -279,9 +289,9 @@ export default async function AbsencesPage({
                               หมายเหตุ
                               <input
                                 name="note"
-                                list="absence-note-presets"
+                                list={canManageAllAbsences ? "absence-note-presets" : undefined}
                                 defaultValue={absence.note ?? ""}
-                                placeholder="เลือกหรือพิมพ์เอง เช่น แจ้งลาป่วย"
+                                placeholder={canManageAllAbsences ? "เลือกหรือพิมพ์เอง เช่น แจ้งลาป่วย" : "ถ้ามี"}
                               />
                             </label>
                             <button className="btn primary" type="submit">
@@ -306,7 +316,7 @@ export default async function AbsencesPage({
         </div>
 
         <div className="card">
-          <h2>การยื่นลากิจหรือไปราชการ</h2>
+          <h2>การยื่นลากิจ ไปราชการ หรือลาป่วย(ล่วงหน้า)</h2>
           <div className="table-wrap">
             <table>
               <thead>
@@ -343,6 +353,7 @@ export default async function AbsencesPage({
 function absenceTypeLabel(type: string) {
   if (type === "OFFICIAL") return "ไปราชการ";
   if (type === "PERSONAL") return "ลากิจ";
+  if (type === "SICK_ADVANCE") return "ลาป่วย(ล่วงหน้า)";
   return "ไม่มาปฏิบัติงาน";
 }
 

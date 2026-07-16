@@ -275,10 +275,11 @@ export async function POST(request: Request) {
       target &&
       canCreateForThisPeriod &&
       toDateMatchesTarget &&
-      // ลาป่วย (LEAVE) สลับคาบได้ด้วย — ช่วยกลุ่มสาระที่ครูน้อยจนหาครูสอนแทนไม่พอ
+      // ไม่มาปฏิบัติงาน (LEAVE) และลาป่วยล่วงหน้า (SICK_ADVANCE) สลับคาบได้ด้วย
       (absencePeriod.absence.type === "OFFICIAL" ||
         absencePeriod.absence.type === "PERSONAL" ||
-        absencePeriod.absence.type === "LEAVE")
+        absencePeriod.absence.type === "LEAVE" ||
+        absencePeriod.absence.type === "SICK_ADVANCE")
     ) {
       // เลือกสลับคาบ = ยกเลิกการเข้าแทนเดิมของคาบนี้ (ถ้ามี) ไม่ให้สองวิธีค้างซ้อนกัน
       await prisma.$transaction([

@@ -115,8 +115,8 @@ export default async function ReportsPage({
   const max = Math.max(1, ...rows.map((row) => row.count));
   const total = rows.reduce((sum, row) => sum + row.count, 0);
 
-  // Leave summary (days) for the same range/department — counts ลาป่วย (LEAVE) and ลากิจ (PERSONAL) only.
-  const leaveWhere: Prisma.TeacherAbsenceWhereInput = { type: { in: ["LEAVE", "PERSONAL"] } };
+  // Leave summary (days) — ไม่มาปฏิบัติงาน + ลาป่วยล่วงหน้า นับรวมช่องเดียวกัน ส่วนลากิจแยกช่อง
+  const leaveWhere: Prisma.TeacherAbsenceWhereInput = { type: { in: ["LEAVE", "SICK_ADVANCE", "PERSONAL"] } };
   if (range === "day") {
     const date = parseDateInput(selectedDate);
     if (date) {
@@ -142,7 +142,7 @@ export default async function ReportsPage({
   const leaveByTeacher = new Map<string, { sick: number; personal: number }>();
   for (const item of leaveCounts) {
     const entry = leaveByTeacher.get(item.teacherId) ?? { sick: 0, personal: 0 };
-    if (item.type === "LEAVE") entry.sick = item._count._all;
+    if (item.type === "LEAVE" || item.type === "SICK_ADVANCE") entry.sick += item._count._all;
     else if (item.type === "PERSONAL") entry.personal = item._count._all;
     leaveByTeacher.set(item.teacherId, entry);
   }

@@ -148,6 +148,7 @@ const GLOSSARY: [string, string][] = [
   ["ใช้งาน", "Active"],
   ["ปิดใช้งาน", "Inactive"],
   ["ไม่มาปฏิบัติงาน", "Absent from duty"],
+  ["ลาป่วย(ล่วงหน้า)", "Advance sick leave"],
   ["แจ้งลาป่วย", "Reported sick leave"],
   ["ลาป่วย", "Sick leave"],
   ["ลากิจ", "Personal leave"],
