@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { AppShell } from "@/components/AppShell";
+import { SaveToast } from "@/components/SaveToast";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canManageSubstitution } from "@/lib/rbac";
@@ -34,6 +35,7 @@ export default async function SubstitutionsPage({
     printEndDate?: string;
     printTeacherId?: string;
     printDepartmentId?: string;
+    savedMessage?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -421,6 +423,7 @@ export default async function SubstitutionsPage({
 
   return (
     <AppShell user={user}>
+      {params.savedMessage ? <SaveToast message={params.savedMessage} /> : null}
       <div className="page-head">
         <div>
           <h1>จัดครูสอนแทน</h1>
@@ -573,13 +576,17 @@ export default async function SubstitutionsPage({
                     <div className="recommendation-main">
                       <strong>จัดครูสอนแทนแล้ว</strong>
                       <p className="muted">
-                        ครูสอนแทนปัจจุบัน:{" "}
+                        ผู้เข้าสอนแทนปัจจุบัน:{" "}
                         {currentSubstitute ? (
                           <span className="no-glossary">
                             {currentSubstitute.code} - {currentSubstitute.name} ({currentSubstitute.department.name})
                           </span>
+                        ) : selected.substitution.externalSubstituteName ? (
+                          <span className="no-glossary">
+                            นิสิต/นักศึกษาฝึกประสบการณ์: {selected.substitution.externalSubstituteName}
+                          </span>
                         ) : (
-                          "ไม่พบข้อมูลครู"
+                          "ไม่พบข้อมูลผู้เข้าสอนแทน"
                         )}
                       </p>
                       {user.role === "ADMIN" && selected.substitution ? (
@@ -611,21 +618,6 @@ export default async function SubstitutionsPage({
                 <p className="muted">บัญชีครูดูรายการของตนเองได้ แต่จัดครูแทนไม่ได้</p>
               ) : (
                 <>
-                  <div className="recommendation-list">
-                    <div className="recommendation-item">
-                      <div className="recommendation-main">
-                        <strong>นักเรียนไปทัศนศึกษา</strong>
-                        <p className="muted">เลือกตัวเลือกนี้เมื่อคาบนี้ไม่ต้องมีครูเข้าแทน</p>
-                      </div>
-                      <form action="/api/substitutions" method="post">
-                        <input type="hidden" name="intent" value="field_trip" />
-                        <input type="hidden" name="absencePeriodId" value={selected.id} />
-                        <button className="btn" type="submit">
-                          บันทึกว่า{FIELD_TRIP_NOTE}
-                        </button>
-                      </form>
-                    </div>
-                  </div>
                   <form className="compact-form" method="get">
                     <input type="hidden" name="absencePeriodId" value={selected.id} />
                     {isEditing ? <input type="hidden" name="edit" value="1" /> : null}
@@ -679,6 +671,40 @@ export default async function SubstitutionsPage({
                   {availableRecommendations.map(renderRecommendation)}
                 </div>
               )}
+                  <div className="recommendation-list">
+                    <div className="recommendation-item">
+                      <div className="recommendation-main">
+                        <strong>นักเรียนไปทัศนศึกษา</strong>
+                        <p className="muted">เลือกตัวเลือกนี้เมื่อคาบนี้ไม่ต้องมีครูเข้าแทน</p>
+                      </div>
+                      <form action="/api/substitutions" method="post">
+                        <input type="hidden" name="intent" value="field_trip" />
+                        <input type="hidden" name="absencePeriodId" value={selected.id} />
+                        <button className="btn" type="submit">
+                          บันทึกว่า{FIELD_TRIP_NOTE}
+                        </button>
+                      </form>
+                    </div>
+                    <div className="recommendation-item">
+                      <div className="recommendation-main">
+                        <strong>นิสิตนักศึกษาฝึกประสบการณ์วิชาชีพเข้าแทน</strong>
+                        <p className="muted">พิมพ์ชื่อนิสิต/นักศึกษาที่รับผิดชอบคาบนี้แทนครู</p>
+                      </div>
+                      <form className="form" action="/api/substitutions" method="post">
+                        <input type="hidden" name="intent" value="external_substitute" />
+                        <input type="hidden" name="absencePeriodId" value={selected.id} />
+                        <input
+                          name="externalSubstituteName"
+                          placeholder="ชื่อนิสิต/นักศึกษา"
+                          defaultValue={selected.substitution?.externalSubstituteName ?? ""}
+                          required
+                        />
+                        <button className="btn primary" type="submit">
+                          ยืนยันเข้าแทน
+                        </button>
+                      </form>
+                    </div>
+                  </div>
                 </>
               )}
             </>

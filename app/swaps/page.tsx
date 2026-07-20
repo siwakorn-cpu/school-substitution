@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { AppShell } from "@/components/AppShell";
 import { ExportTablePng } from "@/components/ExportTablePng";
+import { SaveToast } from "@/components/SaveToast";
 import { requireUser } from "@/lib/auth";
 import { canApproveSwap, canManageSwap } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +14,7 @@ import { TeacherHoverSchedule, hoverWeekDays } from "@/components/TeacherHoverSc
 export default async function SwapsPage({
   searchParams
 }: {
-  searchParams: Promise<{ absencePeriodId?: string; edit?: string; viewDate?: string }>;
+  searchParams: Promise<{ absencePeriodId?: string; edit?: string; viewDate?: string; savedMessage?: string }>;
 }) {
   const user = await requireUser();
   if (!(await canManageSwap(user))) {
@@ -374,6 +375,7 @@ export default async function SwapsPage({
 
   return (
     <AppShell user={user}>
+      {params.savedMessage ? <SaveToast message={params.savedMessage} /> : null}
       <div className="compact-page">
       <div className="page-head">
         <div>

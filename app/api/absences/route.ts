@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         absenceId,
         `ลบรายการลา/ไปราชการ วันที่ ${formatThaiDate(absence.date)}`
       );
-      return redirectTo(request, "/absences");
+      return redirectWithMessage(request, "ยกเลิกรายการเรียบร้อยแล้ว");
     }
 
     // intent === "update": edit type + note. Teachers cannot set sick leave.
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       absenceId,
       `แก้ไขรายการลา/ไปราชการ วันที่ ${formatThaiDate(absence.date)}`
     );
-    return redirectTo(request, "/absences");
+    return redirectWithMessage(request, "บันทึกการแก้ไขเรียบร้อยแล้ว");
   }
 
   if (intent === "bulk") {
@@ -121,7 +121,10 @@ export async function POST(request: Request) {
       null,
       `บันทึกลา/ไปราชการแบบกลุ่ม ${teacherIds.length} คน วันที่ ${formatThaiDate(date)}`
     );
-    return redirectTo(request, "/absences");
+    return redirectWithMessage(
+      request,
+      `บันทึกเรียบร้อยแล้ว ${teacherIds.length} คน (${formatThaiDate(date)})`
+    );
   }
 
   const requestedTeacherId = String(formData.get("teacherId") ?? "");
@@ -143,6 +146,7 @@ export async function POST(request: Request) {
     }
   });
 
+  let createdPeriods = 0;
   for (const scheduleId of scheduleIds) {
     const schedule = await prisma.teachingSchedule.findUnique({
       where: { id: scheduleId },
@@ -157,10 +161,19 @@ export async function POST(request: Request) {
         period: schedule.period
       }
     });
+    createdPeriods += 1;
   }
 
   await logActivity(user, "create", "TeacherAbsence", absence.id, `บันทึกลา/ไปราชการ วันที่ ${formatThaiDate(date)}`);
-  return redirectTo(request, "/absences");
+  return redirectWithMessage(
+    request,
+    `บันทึกเรียบร้อยแล้ว สร้างรายการจัดการ ${createdPeriods} คาบ (${formatThaiDate(date)})`
+  );
+}
+
+// เด้งกลับหน้าบันทึกการลาพร้อมข้อความ pop-up ยืนยันผล
+function redirectWithMessage(request: Request, message: string) {
+  return redirectTo(request, `/absences?savedMessage=${encodeURIComponent(message)}`);
 }
 
 function normalizeAbsenceType(value: FormDataEntryValue | null) {

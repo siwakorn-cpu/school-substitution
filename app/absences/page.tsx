@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { SaveToast } from "@/components/SaveToast";
 import { requireUser } from "@/lib/auth";
 import { canManageAbsence, canRecordOwnAbsence } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
@@ -8,7 +9,7 @@ import { dayOfWeekFromDate, formatThaiDate, parseDateInput, thaiDays, toDateInpu
 export default async function AbsencesPage({
   searchParams
 }: {
-  searchParams: Promise<{ date?: string; teacherId?: string }>;
+  searchParams: Promise<{ date?: string; teacherId?: string; savedMessage?: string }>;
 }) {
   const user = await requireUser();
   const [canManageAllAbsences, canRecordOwn] = await Promise.all([
@@ -67,6 +68,7 @@ export default async function AbsencesPage({
 
   return (
     <AppShell user={user}>
+      {params.savedMessage ? <SaveToast message={params.savedMessage} /> : null}
       <div className="compact-page">
       <div className="page-head">
         <div>

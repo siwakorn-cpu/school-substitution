@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { SaveToast } from "@/components/SaveToast";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { thaiDays } from "@/lib/date";
@@ -61,7 +62,9 @@ export default async function SubjectSettingsPage({
         <span className="en-caption">Manage subjects</span>
         <p className="muted">เพิ่มหรือลบรายวิชา รายวิชาที่ยังมีตารางสอนใช้อยู่จะลบไม่ได้ ให้ลบคาบสอนที่ใช้รายวิชานั้นก่อน</p>
 
-        {params.subjectMessage ? <p className="notice success">{decodeURIComponent(params.subjectMessage)}</p> : null}
+        {params.subjectMessage ? (
+          <SaveToast message={decodeURIComponent(params.subjectMessage)} paramName="subjectMessage" />
+        ) : null}
         {params.subjectError ? <p className="notice danger">{decodeURIComponent(params.subjectError)}</p> : null}
 
         <form className="form activity-add-form" action="/api/subjects" method="post">
@@ -161,7 +164,9 @@ export default async function SubjectSettingsPage({
           คาบนี้ไม่ถูกใช้แลกคาบ/สลับคาบ และไม่ต้องจัดสอนแทนเมื่อครูไม่มาปฏิบัติงาน ลากิจ หรือไปราชการ
         </p>
 
-        {params.levelMeetingMessage ? <p className="notice success">{params.levelMeetingMessage}</p> : null}
+        {params.levelMeetingMessage ? (
+          <SaveToast message={params.levelMeetingMessage} paramName="levelMeetingMessage" />
+        ) : null}
         {params.levelMeetingError ? <p className="notice danger">{params.levelMeetingError}</p> : null}
 
         <div className="level-meeting-grid">

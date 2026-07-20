@@ -9,6 +9,9 @@ import { logActivity } from "@/lib/auditLog";
 
 export async function POST(request: Request) {
   const user = await requireUser();
+  // เด้งกลับพร้อมข้อความ pop-up ยืนยันผล
+  const redirectSaved = (absencePeriodId: string, message: string) =>
+    redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}&savedMessage=${encodeURIComponent(message)}`);
   if (!(await canManageSwap(user))) {
     return redirectTo(request, "/dashboard");
   }
@@ -103,6 +106,10 @@ export async function POST(request: Request) {
         absencePeriodId,
         `ขอให้เข้าสอนแทน: ${substituteTeacher?.name ?? substituteTeacherId} (${formatThaiDate(absencePeriod.absence.date)} คาบ ${absencePeriod.period})`
       );
+      return redirectSaved(
+        absencePeriodId,
+        `ส่งคำขอเข้าแทนถึง ${substituteTeacher?.name ?? "ครูที่เลือก"} แล้ว รออนุมัติ`
+      );
     }
 
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
@@ -182,7 +189,7 @@ export async function POST(request: Request) {
       `นิสิตนักศึกษาฝึกประสบการณ์วิชาชีพเข้าแทน: ${externalSubstituteName} (${formatThaiDate(absencePeriod.absence.date)} คาบ ${absencePeriod.period})`
     );
 
-    return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
+    return redirectSaved(absencePeriodId, `บันทึกนิสิต/นักศึกษาเข้าแทนเรียบร้อยแล้ว: ${externalSubstituteName}`);
   }
 
   if (intent === "approve_substitute" || intent === "reject_substitute") {
@@ -216,6 +223,7 @@ export async function POST(request: Request) {
           })
         ]);
         await logActivity(user, "reject_substitute", "Substitution", absencePeriodId, "ปฏิเสธคำขอเข้าสอนแทน");
+        return redirectSaved(absencePeriodId, "ไม่อนุมัติการเข้าแทนแล้ว คาบกลับเป็นรอจัดการ");
       } else {
         await prisma.$transaction([
           prisma.substitution.update({
@@ -241,6 +249,7 @@ export async function POST(request: Request) {
           })
         ]);
         await logActivity(user, "approve_substitute", "Substitution", absencePeriodId, "อนุมัติคำขอเข้าสอนแทน");
+        return redirectSaved(absencePeriodId, "อนุมัติการเข้าแทนเรียบร้อยแล้ว");
       }
     }
 
@@ -332,6 +341,10 @@ export async function POST(request: Request) {
         absencePeriodId,
         `ส่งคำขอสลับคาบกับ ${targetTeacher?.name ?? target.teacherId} (${formatThaiDate(absencePeriod.absence.date)})`
       );
+      return redirectSaved(
+        absencePeriodId,
+        `ส่งคำขอสลับคาบถึง ${targetTeacher?.name ?? "ครูปลายทาง"} แล้ว รออนุมัติ`
+      );
     }
 
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
@@ -355,6 +368,7 @@ export async function POST(request: Request) {
         });
       }
       await logActivity(user, "cancel_swap_request", "SwapRequest", id, "ยกเลิกคำขอสลับคาบ");
+      return redirectSaved(absencePeriodId, "ยกเลิกคำขอสลับคาบเรียบร้อยแล้ว");
     }
 
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
@@ -384,6 +398,7 @@ export async function POST(request: Request) {
         })
       ]);
       await logActivity(user, "cancel_substitute", "Substitution", absencePeriodId, "ยกเลิกการจัดเข้าสอนแทน");
+      return redirectSaved(absencePeriodId, "ยกเลิกการเข้าแทนเรียบร้อยแล้ว");
     }
 
     return redirectTo(request, `/swaps?absencePeriodId=${absencePeriodId}`);
@@ -415,6 +430,10 @@ export async function POST(request: Request) {
         })
       ]);
       await logActivity(user, "reject_swap_request", "SwapRequest", id, "ไม่อนุมัติคำขอสลับคาบ");
+      return redirectTo(
+        request,
+        `/swaps?savedMessage=${encodeURIComponent("ไม่อนุมัติการสลับคาบแล้ว คาบกลับเป็นรอจัดการ")}`
+      );
     } else {
       const swap = await prisma.swapRequest.findUnique({ where: { id } });
       if (swap) {
@@ -469,6 +488,10 @@ export async function POST(request: Request) {
             })
           ]);
           await logActivity(user, "approve_swap_request", "SwapRequest", id, "อนุมัติคำขอสลับคาบ");
+          return redirectTo(
+            request,
+            `/swaps?savedMessage=${encodeURIComponent("อนุมัติการสลับคาบเรียบร้อยแล้ว")}`
+          );
         }
       }
     }

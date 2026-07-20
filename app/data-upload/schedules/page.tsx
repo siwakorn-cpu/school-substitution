@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { SaveToast } from "@/components/SaveToast";
 import { requireUser } from "@/lib/auth";
 import { thaiDays } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
@@ -152,7 +153,9 @@ export default async function ScheduleDataPage({
         <div className="card span-12 schedule-editor-section">
           <h2>แก้ไขตารางสอนของครู</h2>
           <p className="muted">เลือกครูและภาคเรียนเพื่อแสดงเฉพาะคาบสอนของครูคนนั้น เพิ่ม แก้ไข หรือลบคาบสอนรายคาบ</p>
-          {params.scheduleMessage ? <p className="badge success">{decodeURIComponent(params.scheduleMessage)}</p> : null}
+          {params.scheduleMessage ? (
+            <SaveToast message={decodeURIComponent(params.scheduleMessage)} paramName="scheduleMessage" />
+          ) : null}
           {params.scheduleError ? <p className="error">{decodeURIComponent(params.scheduleError)}</p> : null}
 
           <form className="form compact-form" action="/data-upload/schedules" method="get">

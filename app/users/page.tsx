@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { SaveToast } from "@/components/SaveToast";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserActions } from "./UserActions";
@@ -6,7 +7,7 @@ import { UserActions } from "./UserActions";
 export default async function UsersPage({
   searchParams
 }: {
-  searchParams: Promise<{ imported?: string; error?: string }>;
+  searchParams: Promise<{ imported?: string; error?: string; savedMessage?: string }>;
 }) {
   const user = await requireAdmin();
   const params = await searchParams;
@@ -30,6 +31,7 @@ export default async function UsersPage({
 
   return (
     <AppShell user={user}>
+      {params.savedMessage ? <SaveToast message={params.savedMessage} /> : null}
       <div className="page-head">
         <div>
           <h1>จัดการผู้ใช้</h1>

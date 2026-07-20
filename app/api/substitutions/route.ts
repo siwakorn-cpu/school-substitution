@@ -63,7 +63,89 @@ export async function POST(request: Request) {
       `${FIELD_TRIP_NOTE}: ${absencePeriod.absence.teacher.name} (${formatThaiDate(absencePeriod.absence.date)} คาบ ${absencePeriod.period})`
     );
 
-    return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
+    return redirectTo(
+      request,
+      `/substitutions?absencePeriodId=${absencePeriodId}&savedMessage=${encodeURIComponent(
+        `บันทึกว่า${FIELD_TRIP_NOTE}เรียบร้อยแล้ว`
+      )}`
+    );
+  }
+
+  if (intent === "external_substitute") {
+    const externalSubstituteName = String(formData.get("externalSubstituteName") ?? "").trim();
+    if (!externalSubstituteName) {
+      return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
+    }
+
+    // การเลือกนิสิต/นักศึกษาเข้าแทนจะปิดคำขอสลับคาบเดิมของคาบนี้
+    const activeSwaps = await prisma.swapRequest.findMany({
+      where: { absencePeriodId, status: { in: ["PENDING", "APPROVED"] } }
+    });
+
+    await prisma.$transaction([
+      ...(activeSwaps.length > 0
+        ? [
+            prisma.temporarySchedule.deleteMany({
+              where: { sourceType: "SWAP", sourceId: { in: activeSwaps.map((swap) => swap.id) } }
+            }),
+            prisma.swapRequest.updateMany({
+              where: { id: { in: activeSwaps.map((swap) => swap.id) } },
+              data: { status: "REJECTED", approvedById: user.id }
+            })
+          ]
+        : []),
+      prisma.temporarySchedule.deleteMany({
+        where: { sourceType: "SUBSTITUTE", sourceId: absencePeriodId }
+      }),
+      prisma.substitution.upsert({
+        where: { absencePeriodId },
+        create: {
+          absencePeriodId,
+          originalTeacherId: absencePeriod.absence.teacherId,
+          substituteTeacherId: null,
+          externalSubstituteName,
+          date: absencePeriod.absence.date,
+          period: absencePeriod.period,
+          classRoomId: absencePeriod.schedule.classRoomId,
+          subjectId: absencePeriod.schedule.subjectId,
+          specialRoomId: absencePeriod.schedule.specialRoomId,
+          assignedById: user.id,
+          status: "APPROVED",
+          approvedById: user.id,
+          note: "นิสิตนักศึกษาฝึกประสบการณ์วิชาชีพเข้าแทน"
+        },
+        update: {
+          substituteTeacherId: null,
+          externalSubstituteName,
+          assignedById: user.id,
+          status: "APPROVED",
+          approvedById: user.id,
+          subjectId: absencePeriod.schedule.subjectId,
+          note: "นิสิตนักศึกษาฝึกประสบการณ์วิชาชีพเข้าแทน"
+        }
+      }),
+      prisma.absencePeriod.update({
+        where: { id: absencePeriodId },
+        data: { actionType: "SUBSTITUTE", status: "DONE", note: null }
+      })
+    ]);
+
+    await logActivity(
+      user,
+      "external_substitute",
+      "Substitution",
+      absencePeriodId,
+      `นิสิตนักศึกษาฝึกประสบการณ์วิชาชีพเข้าแทน: ${externalSubstituteName} (${formatThaiDate(
+        absencePeriod.absence.date
+      )} คาบ ${absencePeriod.period})`
+    );
+
+    return redirectTo(
+      request,
+      `/substitutions?absencePeriodId=${absencePeriodId}&savedMessage=${encodeURIComponent(
+        `บันทึกนิสิต/นักศึกษาเข้าแทนเรียบร้อยแล้ว: ${externalSubstituteName}`
+      )}`
+    );
   }
 
   const valid = await validateSubstitute(absencePeriodId, substituteTeacherId, {
@@ -95,6 +177,7 @@ export async function POST(request: Request) {
       absencePeriodId,
       originalTeacherId: absencePeriod.absence.teacherId,
       substituteTeacherId,
+      externalSubstituteName: null,
       date: absencePeriod.absence.date,
       period: absencePeriod.period,
       classRoomId: absencePeriod.schedule.classRoomId,
@@ -106,6 +189,7 @@ export async function POST(request: Request) {
     },
     update: {
       substituteTeacherId,
+      externalSubstituteName: null,
       assignedById: user.id,
       status: "APPROVED",
       note: null
@@ -126,5 +210,10 @@ export async function POST(request: Request) {
     `จัดครูสอนแทน: ${absencePeriod.absence.teacher.name} -> ${substituteTeacher?.name ?? substituteTeacherId} (${formatThaiDate(absencePeriod.absence.date)} คาบ ${absencePeriod.period})`
   );
 
-  return redirectTo(request, `/substitutions?absencePeriodId=${absencePeriodId}`);
+  return redirectTo(
+    request,
+    `/substitutions?absencePeriodId=${absencePeriodId}&savedMessage=${encodeURIComponent(
+      `จัดครูสอนแทนเรียบร้อยแล้ว: ${substituteTeacher?.name ?? "ครูที่เลือก"} (คาบ ${absencePeriod.period})`
+    )}`
+  );
 }

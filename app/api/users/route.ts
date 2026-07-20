@@ -8,6 +8,8 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
   const redirectWithError = (message: string) => redirectTo(request, `/users?error=${encodeURIComponent(message)}`);
+  const redirectSaved = (message: string) =>
+    redirectTo(request, `/users?savedMessage=${encodeURIComponent(message)}`);
 
   if (intent === "create") {
     const username = String(formData.get("username") ?? "").trim();
@@ -24,6 +26,7 @@ export async function POST(request: Request) {
         }
       });
       await logActivity(currentUser, "create", "User", created.id, `เพิ่มผู้ใช้: ${username}`);
+      return redirectSaved(`เพิ่มผู้ใช้ ${username} เรียบร้อยแล้ว`);
     }
   }
 
@@ -32,6 +35,7 @@ export async function POST(request: Request) {
     const password = String(formData.get("password") ?? "");
     const isSelf = id === currentUser.id;
     const isActive = String(formData.get("isActive") ?? "true") === "true";
+    const passwordChanged = password.length >= 6;
 
     const updated = await prisma.user.update({
       where: { id },
@@ -39,10 +43,15 @@ export async function POST(request: Request) {
         role: normalizeRole(formData.get("role")),
         teacherId: normalizeTeacherId(formData.get("teacherId")),
         isActive: isSelf ? true : isActive,
-        ...(password.length >= 6 ? { passwordHash: await hashPassword(password) } : {})
+        ...(passwordChanged ? { passwordHash: await hashPassword(password) } : {})
       }
     });
     await logActivity(currentUser, "update", "User", id, `แก้ไขผู้ใช้: ${updated.username}`);
+    return redirectSaved(
+      passwordChanged
+        ? `บันทึกผู้ใช้ ${updated.username} และตั้งรหัสผ่านใหม่เรียบร้อยแล้ว`
+        : `บันทึกผู้ใช้ ${updated.username} เรียบร้อยแล้ว`
+    );
   }
 
   if (intent === "delete") {
@@ -53,6 +62,7 @@ export async function POST(request: Request) {
     try {
       const deleted = await prisma.user.delete({ where: { id } });
       await logActivity(currentUser, "delete", "User", id, `ลบผู้ใช้: ${deleted.username}`);
+      return redirectSaved(`ลบผู้ใช้ ${deleted.username} เรียบร้อยแล้ว`);
     } catch {
       return redirectWithError("ลบผู้ใช้ไม่สำเร็จ");
     }
